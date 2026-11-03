@@ -28,49 +28,9 @@
   background: #fff;
 }
 
-.app-header {
-  position: absolute;
-  z-index: 30;
-  inset: 0 0 auto;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
-}
-
-.app-header strong {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.6px;
-}
-
-.menu-button {
-  position: absolute;
-  left: 14px;
-  top: 20px;
-  width: 28px;
-  height: 28px;
-  padding: 5px 2px;
-}
-
-.menu-button span {
-  display: block;
-  width: 19px;
-  height: 2px;
-  margin-bottom: 4px;
-  border-radius: 9px;
-  background: #374553;
-}
-
-.menu-button span:nth-child(2) {
-  width: 14px;
-}
-
 .map {
   position: absolute;
-  inset: 64px 0 0;
+  inset: 0;
   overflow: hidden;
   background: #eceff1;
   background-image: url('../public/assets/50487.png');

@@ -99,19 +99,6 @@ const overlayAssets = [
   ["67f1f.svg", -327, 104.27, 390.987, 571.484],
 ] as const
 
-function Header() {
-  return (
-    <header className="app-header">
-      <button className="menu-button" aria-label="메뉴 열기">
-        <span />
-        <span />
-        <span />
-      </button>
-      <strong>쏘카일레클</strong>
-    </header>
-  )
-}
-
 function FilterIcon({
   type,
   active,
@@ -593,7 +580,6 @@ export default function App() {
 
   return (
     <div className={`app ${selected ? "has-selection" : ""}`}>
-      <Header />
       <Map
         visibleBikes={visibleBikes}
         selected={selected}
