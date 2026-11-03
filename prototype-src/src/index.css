@@ -161,7 +161,7 @@
 .filter-panel {
   position: absolute;
   z-index: 20;
-  top: 77px;
+  top: 13px;
   left: 20px;
   right: 20px;
 }
@@ -635,7 +635,7 @@
 
 @media (max-height: 700px) {
   .filter-panel {
-    top: 72px;
+    top: 8px;
   }
 
   .detail-sheet {
