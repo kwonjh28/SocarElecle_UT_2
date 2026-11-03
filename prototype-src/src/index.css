@@ -695,3 +695,30 @@
   .tags span { font-size: 11px; padding: 4px 6px; }
   .detail-actions button { font-size: 13px; }
 }
+
+.mission-button {
+  position: absolute;
+  z-index: 21;
+  left: 20px;
+  bottom: 173.5px;
+  height: 35px;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #171717;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  transition: bottom 300ms cubic-bezier(.2,0,0,1);
+}
+.has-selection .mission-button { bottom: 237.5px; }
+.mission-dialog { margin:auto; width:calc(100% - 40px);max-width:353px;max-height:calc(100dvh - 40px);padding:28px 24px 24px;border:0;border-radius:20px;background:#fff;color:#192334;box-shadow:0 12px 48px #0002;overflow:auto; }
+.mission-dialog::backdrop { background:rgba(16,24,40,.48); }
+.mission-eyebrow { font-size:12px;font-weight:600;color:#0078ff;line-height:1.5; }
+.mission-dialog h2 { font-size:22px;font-weight:600;line-height:1.5;letter-spacing:-.6px;word-break:keep-all;margin:16px 0 28px; }
+.mission-close { width:100%;min-height:52px;border:0;border-radius:12px;background:#0078ff;color:#fff;font-size:16px;font-weight:600; }
+@media(max-width:359px){.mission-button{font-size:12px;padding:7px 12px}.mission-dialog{padding:24px 20px}.mission-dialog h2{font-size:20px}}

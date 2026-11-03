@@ -1,4 +1,8 @@
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+
+function emit(type: string, details: Record<string, unknown> = {}) {
+  if (window.parent !== window) window.parent.postMessage({source: 'elecle-prototype', type, details}, window.location.origin)
+}
 
 const A = `${import.meta.env.BASE_URL}assets`
 
@@ -146,7 +150,7 @@ function Filters({
     <div className="filter-panel">
       <button
         className="pass-card"
-        onClick={() => alert("구독패스 요금 안내를 준비 중이에요.")}
+        onClick={() => emit("inactive_click", {button:"fare_info"})}
       >
         <span>
           매일 30분 구독패스 <b>28분</b> 남음
@@ -434,10 +438,8 @@ function LocateButton({ onClick }: { onClick: () => void }) {
 
 function DefaultSheet({
   visible,
-  notify,
 }: {
   visible: boolean
-  notify: (message: string) => void
 }) {
   return (
     <section
@@ -447,13 +449,13 @@ function DefaultSheet({
     >
       <div className="quick-links">
         <span>▭&nbsp; NH체크카드</span>
-        <button onClick={() => notify("둘러보기 화면으로 이동합니다.")}>
+        <button onClick={() => emit("inactive_click", {button:"browse"})}>
           패스&nbsp; <b>둘러보기 ›</b>
         </button>
       </div>
       <button
         className="scan-button"
-        onClick={() => notify("QR 스캐너를 열었어요.")}
+        onClick={() => emit("inactive_click", {button:"qr_scan"})}
       >
         <span className="scan-icon" /> 기기 QR 스캔하기
       </button>
@@ -476,13 +478,12 @@ function BatteryIcon({ value }: { value: number }) {
 function DetailSheet({
   bike,
   visible,
-  notify,
+  onUnlock,
 }: {
   bike: Bike
   visible: boolean
-  notify: (message: string) => void
+  onUnlock: (bike: Bike) => void
 }) {
-  const [ringing, setRinging] = useState(false)
 
   return (
     <section
@@ -516,29 +517,29 @@ function DetailSheet({
           </div>
         </div>
         <button
-          className={`ring-button ${ringing ? "ringing" : ""}`}
-          onClick={() => setRinging((value) => !value)}
+          className="ring-button"
+          onClick={() => emit("inactive_click", {button:"ring",bikeId:bike.id})}
         >
           <img src={`${A}/8afd7.svg`} alt="" />
-          {ringing ? "소리 끄기" : "소리내기"}
+          소리내기
         </button>
       </div>
       <div className="detail-actions">
         <button
           className="report"
-          onClick={() => notify("신고 화면을 열었어요.")}
+          onClick={() => emit("inactive_click", {button:"report",bikeId:bike.id})}
         >
           신고하기
         </button>
         <button
           className="reserve"
-          onClick={() => notify(`${bike.id} 자전거를 예약했어요.`)}
+          onClick={() => emit("inactive_click", {button:"reserve",bikeId:bike.id})}
         >
           예약하기
         </button>
         <button
           className="unlock"
-          onClick={() => notify("잠금 해제를 시작합니다.")}
+          onClick={() => onUnlock(bike)}
         >
           바로 잠금해제
         </button>
@@ -553,7 +554,16 @@ export default function App() {
   const [charged, setCharged] = useState(false)
   const [selected, setSelected] = useState<Bike | null>(null)
   const [mapPan, setMapPan] = useState<MapPan>({ x: 0, y: 0 })
-  const [toast, setToast] = useState("")
+  const [missionOpen, setMissionOpen] = useState(false)
+  const missionDialog = useRef<HTMLDialogElement>(null)
+  const missionButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => { emit('ready') }, [])
+  useEffect(() => {
+    if (missionOpen) missionDialog.current?.showModal()
+  }, [missionOpen])
+  const openMission = () => { emit('mission_open'); setMissionOpen(true) }
+  const closeMission = () => { emit('mission_close'); setMissionOpen(false); missionButton.current?.focus() }
+  const targetBike = bikes.filter(bike => bike.recent).reduce((closest, bike) => Number.parseInt(bike.distance) < Number.parseInt(closest.distance) ? bike : closest)
 
   const visibleBikes = useMemo(
     () =>
@@ -566,12 +576,8 @@ export default function App() {
     [recent, near, charged],
   )
 
-  const notify = (message: string) => {
-    setToast(message)
-    window.setTimeout(() => setToast(""), 2200)
-  }
-
   const toggle = (name: "recent" | "near" | "charged") => {
+    emit('filter_toggle', {filter:name,enabled:!(name==='recent'?recent:name==='near'?near:charged),screen:'map',filters:{recent:name==='recent'?!recent:recent,near:name==='near'?!near:near,charged:name==='charged'?!charged:charged}})
     setSelected(null)
     if (name === "recent") setRecent((value) => !value)
     if (name === "near") setNear((value) => !value)
@@ -583,7 +589,7 @@ export default function App() {
       <Map
         visibleBikes={visibleBikes}
         selected={selected}
-        onSelect={setSelected}
+        onSelect={(bike) => {setSelected(bike);emit('bike_select',{bikeId:bike.id,distance:bike.distance,recent:bike.recent,screen:'bike_detail',filters:{recent,near,charged}})}}
         offsetX={recent ? (near ? -15 : -28) : 0}
         pan={mapPan}
         onPanChange={setMapPan}
@@ -593,19 +599,22 @@ export default function App() {
         onClick={() => {
           setSelected(null)
           setMapPan({ x: 0, y: 0 })
-          notify("현재 위치로 지도를 이동했어요.")
+          emit('locate',{screen:'map',filters:{recent,near,charged}})
         }}
       />
-      <DefaultSheet visible={!selected} notify={notify} />
+      <button ref={missionButton} className="mission-button" onClick={openMission}>미션 보기</button>
+      <DefaultSheet visible={!selected} />
       <DetailSheet
         bike={selected ?? bikes[0]}
         visible={Boolean(selected)}
-        notify={notify}
+        onUnlock={(bike) => emit('unlock_attempt',{bikeId:bike.id,success:bike.id===targetBike.id,screen:'bike_detail',filters:{recent,near,charged}})}
       />
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
+      {missionOpen && (
+        <dialog ref={missionDialog} className="mission-dialog" aria-labelledby="mission-heading" onCancel={(event) => {event.preventDefault();closeMission()}}>
+          <span className="mission-eyebrow">태스크 1 · 미션</span>
+          <h2 id="mission-heading">최근에 정비가 된 자전거들 중 사용자와 가장 가까이 위치한 자전거를 잠금해제 해주세요.</h2>
+          <button className="mission-close" onClick={closeMission}>닫기</button>
+        </dialog>
       )}
     </div>
   )

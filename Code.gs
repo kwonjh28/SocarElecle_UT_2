@@ -9,7 +9,7 @@ function doGet(e) {
     lock.waitLock(20000);
     const payload = JSON.parse(e.parameter.payload || '{}');
     if (!/^[a-f0-9-]{36}$/.test(payload.session || '')) throw Error('잘못된 세션입니다.');
-    if (!['register','submit'].includes(e.parameter.action)) throw Error('지원하지 않는 요청입니다.');
+    if (!['register','submit','track'].includes(e.parameter.action)) throw Error('지원하지 않는 요청입니다.');
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheet = ss.getSheetByName('UT_responses');
     if (!sheet) { sheet=ss.insertSheet('UT_responses'); sheet.appendRow(HEADERS); sheet.setFrozenRows(1); }
@@ -23,6 +23,7 @@ function doGet(e) {
     }
     const rowNumber=index+1;
     const id=sheet.getRange(rowNumber,2).getValue();
+    if(payload.mission) saveMission_(ss,payload.session,id,payload.mission,payload.events||[]);
     if(e.parameter.action==='submit'){
       const a=payload.answers||{};
       const allowed=['현재 위치에서 자전거까지의 거리','배터리 잔량','자전거의 이용 가능 상태','자전거의 외관 및 관리 상태','기타'];
@@ -44,4 +45,33 @@ function doGet(e) {
     result={ok:true,participantId:id};
   }catch(err){result={ok:false,error:String(err.message||err)}}finally{if(lock.hasLock())lock.releaseLock()}
   return ContentService.createTextOutput(callback+'('+JSON.stringify(result).replace(/</g,'\\u003c')+');').setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+
+function saveMission_(ss,session,participantId,m,events) {
+  const uuid=/^[a-f0-9-]{36}$/;
+  if(!uuid.test(m.attemptId||'')||!['running','success'].includes(m.status))throw Error('잘못된 미션 기록입니다.');
+  const numeric=['activeSeconds','totalSeconds','revision'];
+  if(numeric.some(key=>!Number.isFinite(m[key])||m[key]<0)||!Number.isInteger(m.revision))throw Error('잘못된 측정값입니다.');
+  if(!Number.isFinite(Date.parse(m.startedAt))||(m.endedAt&&!Number.isFinite(Date.parse(m.endedAt))))throw Error('잘못된 미션 시각입니다.');
+  const first=(value)=>value===null||value===undefined?'':Number.isFinite(value)&&value>=0?value:'';
+  const eventTypes=['prototype_ready','mission_open','mission_close','filter_toggle','bike_select','locate','inactive_click','unlock_attempt','mission_success','tab_hidden','tab_visible','page_exit'];
+  if(!Array.isArray(events)||events.length>4||events.some(event=>!uuid.test(event.id||'')||!eventTypes.includes(event.type)||!Number.isInteger(event.seq)||event.seq<1||!Number.isFinite(event.seconds)||event.seconds<0||!Number.isFinite(Date.parse(event.at))))throw Error('잘못된 행동 기록입니다.');
+  let summary=ss.getSheetByName('UT_missions');
+  const summaryHeaders=['session_key','participant_id','attempt_id','mission_status','started_at','ended_at','total_seconds','active_seconds','first_filter_seconds','first_recent_filter_seconds','filter_discovery','revision','last_saved_at'];
+  if(!summary){summary=ss.insertSheet('UT_missions');summary.appendRow(summaryHeaders);summary.setFrozenRows(1);}
+  const rows=summary.getDataRange().getValues();
+  const index=rows.findIndex((row,i)=>i>0&&row[0]===session&&row[2]===m.attemptId);
+  const discovery=m.firstRecentFilterSeconds===null||m.firstRecentFilterSeconds===undefined?(m.status==='success'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)';
+  const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString()];
+  if(index<0)summary.appendRow(row);
+  else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]==='success'&&m.status!=='success'))summary.getRange(index+1,1,1,row.length).setValues([row]);
+  if(events.length){
+    let log=ss.getSheetByName('UT_events');
+    if(!log){log=ss.insertSheet('UT_events');log.appendRow(['session_key','participant_id','attempt_id','event_id','sequence','event_at','event_type','active_seconds','details']);log.setFrozenRows(1);}
+    const seen=new Set(log.getDataRange().getValues().slice(1).map(row=>row[3]));
+    const pending=[];
+    events.forEach(event=>{if(!seen.has(event.id)){seen.add(event.id);pending.push([session,participantId,m.attemptId,event.id,event.seq,event.at,event.type,event.seconds,JSON.stringify(event.details||{}).slice(0,1500)]);}});
+    if(pending.length)log.getRange(log.getLastRow()+1,1,pending.length,9).setValues(pending);
+  }
 }
