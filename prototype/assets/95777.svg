@@ -1,0 +1,22 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Frame 2085672748">
+<rect width="40" height="40" rx="20" fill="#158FFF" fill-opacity="0.15"/>
+<g id="Ellipse 6803" filter="url(#filter0_d_0_415)">
+<circle cx="20" cy="20" r="7" fill="#158FFF"/>
+<circle cx="20" cy="20" r="6" stroke="white" stroke-width="2"/>
+</g>
+<path id="Polygon 2" d="M13.6151 36.0329L12.5918 26.7719L20.6557 29.9302L13.6151 36.0329Z" fill="#158FFF"/>
+</g>
+<defs>
+<filter id="filter0_d_0_415" x="7" y="7" width="26" height="26" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="3"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0823529 0 0 0 0 0.560784 0 0 0 0 1 0 0 0 0.8 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_415"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_415" result="shape"/>
+</filter>
+</defs>
+</svg>
