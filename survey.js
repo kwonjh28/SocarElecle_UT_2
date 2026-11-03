@@ -5,8 +5,8 @@ let state;try{state=JSON.parse(sessionStorage.getItem(storageKey))}catch{}
 state=state||{step:1,session:crypto.randomUUID(),answers:{ageGroup:'',usage:[],usageOther:'',gender:'',experience:'',frequency:'',criteria:[],other:''},participantId:null};
 if(state.step===0)state.step=1;
 let busy=false;
-const questions=[null,'연령대를 선택해 주세요.','성별을 선택해 주세요.','공유 전기자전거 서비스를 이용해 본 경험이 있나요?','최근 1개월 동안 공유 전기자전거를 몇 회 이용하셨나요?'];
-const choices={1:['10대','20대','30대','40대','50대','60대 이상'],2:['남성','여성','응답하지 않음'],3:['있다','없다'],4:['0회','1~2회','3~5회','6~11회','12회 이상']};
+const questions=[null,'연령대를 선택해 주세요.','성별을 선택해 주세요.','공유 전기자전거 서비스를 이용해 본 경험이 있나요?','공유 전기자전거를 얼마나 자주 이용하시나요?'];
+const choices={1:['10대','20대','30대','40대','50대','60대 이상'],2:['남성','여성','응답하지 않음'],3:['있다','없다'],4:['주 3회 이상 이용','주 1~2회 이용','월 1~2회 정도 이용','과거에 여러 차례 이용했지만, 최근 1개월간 이용하지 않음','지금까지 한두번만 이용해 봄']};
 const keys={1:'ageGroup',2:'gender',3:'experience',4:'frequency'};
 const usageOptions=['출퇴근 또는 등하교할 때','대중교통 환승 및 연계 이동 시','가까운 목적지로 이동할 때','여가·산책·관광을 즐길 때','급하게 이동해야 할 때','기타'];
 const criteria=['현재 위치에서 자전거까지의 거리','배터리 잔량','자전거의 이용 가능 상태','자전거의 외관 및 관리 상태','기타'];

@@ -331,6 +331,31 @@ function Map({
     pan: MapPan
   } | null>(null)
   const [dragging, setDragging] = useState(false)
+  const mapElement = useRef<HTMLElement>(null)
+  const [selectionOffsetY, setSelectionOffsetY] = useState(0)
+
+  useEffect(() => {
+    const element = mapElement.current
+    if (!element) return
+    const adjustSelection = () => {
+      if (!selected) { setSelectionOffsetY(0); return }
+      const app = element.closest('.app') as HTMLElement | null
+      const sheet = app?.querySelector('.detail-sheet') as HTMLElement | null
+      const filters = app?.querySelector('.filter-panel') as HTMLElement | null
+      if (!app || !sheet || !filters) return
+      // Use the sheet's layout height, independent of its opening animation.
+      const safeTop = filters.getBoundingClientRect().bottom + 12
+      const safeBottom = app.getBoundingClientRect().bottom - sheet.offsetHeight - 17 - 12
+      const markerTop = element.getBoundingClientRect().top + selected.y + pan.y
+      const markerBottom = markerTop + 87 // Include the pin tip extending beyond its button.
+      const correction = markerBottom > safeBottom ? safeBottom - markerBottom : markerTop < safeTop ? safeTop - markerTop : 0
+      setSelectionOffsetY(correction)
+    }
+    adjustSelection()
+    const observer = new ResizeObserver(adjustSelection)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [selected, pan.y])
 
   const clamp = (value: number, min: number, max: number) =>
     Math.min(max, Math.max(min, value))
@@ -345,6 +370,7 @@ function Map({
 
   return (
     <main
+      ref={mapElement}
       className={`map ${dragging ? "dragging" : ""}`}
       aria-label="주변 자전거 지도. 드래그하거나 방향키로 조금 이동할 수 있습니다."
       tabIndex={0}
@@ -395,7 +421,7 @@ function Map({
     >
       <div
         className="map-world"
-        style={{ marginLeft: offsetX + pan.x, top: pan.y }}
+        style={{ marginLeft: offsetX + pan.x, top: pan.y + selectionOffsetY }}
       >
         <img className="map-image" src={`${A}/50487.png`} alt="" />
         {overlayAssets.map(([src, left, top, width, height]) => (

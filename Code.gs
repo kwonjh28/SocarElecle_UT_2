@@ -30,7 +30,7 @@ function doGet(e) {
       if(!['10대','20대','30대','40대','50대','60대 이상'].includes(a.ageGroup))throw Error('연령대를 확인해 주세요.');
       if(!['남성','여성','응답하지 않음'].includes(a.gender)||!['있다','없다'].includes(a.experience))throw Error('필수 답변을 확인해 주세요.');
       const frequency=a.experience==='없다'?'0회':a.frequency;
-      if(!['0회','1~2회','3~5회','6~11회','12회 이상'].includes(frequency))throw Error('이용 횟수를 확인해 주세요.');
+      if(!['0회','주 3회 이상 이용','주 1~2회 이용','월 1~2회 정도 이용','과거에 여러 차례 이용했지만, 최근 1개월간 이용하지 않음','지금까지 한두번만 이용해 봄'].includes(frequency))throw Error('이용 횟수를 확인해 주세요.');
       if(!Array.isArray(a.criteria)||!a.criteria.length||a.criteria.length>3||a.criteria.some(x=>!allowed.includes(x)))throw Error('고려 조건을 선택해 주세요.');
       const other=a.criteria.includes('기타')?String(a.other||'').trim():'';
       if(a.criteria.includes('기타')&&(!other||other.length>500))throw Error('기타 내용을 확인해 주세요.');
