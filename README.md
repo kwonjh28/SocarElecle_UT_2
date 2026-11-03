@@ -1,6 +1,6 @@
 # 쏘카일레클 모바일 UT
 
-Q1~Q4 → 프로토타입 체험 → Q5 → 완료. 모든 표시 문항은 필수입니다. Q3 ‘없다’는 Q4를 생략하고 0회로 저장합니다. 이름·전화번호·이메일 필드는 없습니다. UT 지표 수집은 아직 추가하지 않았습니다. 체험 종료는 참가자가 ‘체험 마치기’를 누릅니다.
+Q1~Q4 → Q5 이용 상황(최대 3개) → 프로토타입 체험 → Q6 → 완료. 모든 표시 문항은 필수입니다. Q3 ‘없다’는 Q4를 생략하고 0회로 저장합니다. 이름·전화번호·이메일 필드는 없습니다. UT 지표 수집은 아직 추가하지 않았습니다. 체험 종료는 참가자가 ‘체험 마치기’를 누릅니다.
 
 ## 현재 미리보기
 
@@ -21,3 +21,5 @@ config.js의 endpoint가 비어 있으면 미리보기입니다. ID는 PREVIEW-P
 GitHub Pages 배포 파일: index.html, style.css, survey.js, config.js, prototype/ 전체. 모든 경로는 상대 경로로 하위 경로 배포를 지원합니다. Code.gs, README.md, prototype-src/는 배포할 필요가 없습니다.
 
 프로토타입 수정: prototype-src에서 npm install 후 npm run build. 빌드 결과는 prototype/에 생성됩니다. 원본 Figma 내보내기 파일은 변경하지 않았습니다.
+
+연령대는 age_group에 저장하며 기존 age 열은 과거 데이터 보존용으로 유지합니다. 신규 응답의 age는 비워 둡니다. 이용 상황은 usage_situations, 기타는 usage_other에 저장합니다. usage_question_type은 experienced(경험자) 또는 expected(미경험자)입니다. Apps Script를 이미 배포했다면 Code.gs를 교체하고 새 버전으로 다시 배포해야 합니다.
