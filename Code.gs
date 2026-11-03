@@ -30,7 +30,7 @@ function doGet(e) {
       if(!['남성','여성','응답하지 않음'].includes(a.gender)||!['있다','없다'].includes(a.experience))throw Error('필수 답변을 확인해 주세요.');
       const frequency=a.experience==='없다'?'0회':a.frequency;
       if(!['0회','1~2회','3~5회','6~11회','12회 이상'].includes(frequency))throw Error('이용 횟수를 확인해 주세요.');
-      if(!Array.isArray(a.criteria)||!a.criteria.length||a.criteria.some(x=>!allowed.includes(x)))throw Error('고려 조건을 선택해 주세요.');
+      if(!Array.isArray(a.criteria)||!a.criteria.length||a.criteria.length>3||a.criteria.some(x=>!allowed.includes(x)))throw Error('고려 조건을 선택해 주세요.');
       const other=a.criteria.includes('기타')?String(a.other||'').trim():'';
       if(a.criteria.includes('기타')&&(!other||other.length>500))throw Error('기타 내용을 확인해 주세요.');
       const usageAllowed=['출퇴근 또는 등하교할 때','대중교통 환승 및 연계 이동 시','가까운 목적지로 이동할 때','여가·산책·관광을 즐길 때','급하게 이동해야 할 때','기타'];

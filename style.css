@@ -18,13 +18,3 @@
   .shell .error{font-size:13px;line-height:1.5}
   .shell .preview{font-size:11px;line-height:1.6}
 }
-
-.mission-shell{background:#f5f6f8}
-.mission-content{padding-top:56px}
-.mission-badge{display:inline-block;padding:7px 13px;background:#192334;color:#fff;border-radius:99px;font-size:13px;font-weight:600;line-height:1.5}
-.mission-card{margin-top:32px;padding:24px 20px;background:#efffe0;border:1.5px solid #192334;border-radius:18px}
-.mission-label{font-size:14px;font-weight:600;line-height:1.5;color:#64715a;margin-bottom:12px}
-.mission-card h1{margin:0;font-size:24px;line-height:1.5;letter-spacing:-.6px;font-weight:600}
-.mission-shell .footer{background:#f5f6f8}
-.mission-shell .primary{background:#192334}
-@media(max-width:599px){.mission-card h1{font-size:22px;line-height:1.5}.mission-content{padding-top:48px}}
