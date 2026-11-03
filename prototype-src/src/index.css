@@ -722,3 +722,9 @@
 .mission-dialog h2 { font-size:22px;font-weight:600;line-height:1.5;letter-spacing:-.6px;word-break:keep-all;margin:16px 0 28px; }
 .mission-close { width:100%;min-height:52px;border:0;border-radius:12px;background:#0078ff;color:#fff;font-size:16px;font-weight:600; }
 @media(max-width:359px){.mission-button{font-size:12px;padding:7px 12px}.mission-dialog{padding:24px 20px}.mission-dialog h2{font-size:20px}}
+
+/* Mobile touch browsers: compact distance labels without shrinking desktop type. */
+@media(max-width:599px) and (pointer:coarse){
+  .bike-marker span{font-size:11px;font-weight:600;line-height:15px;padding:4px 6px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  .range-pill{font-size:12px;line-height:18px;gap:6px;padding:6px 14px;min-width:178px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+}

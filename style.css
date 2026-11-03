@@ -18,3 +18,9 @@
   .shell .error{font-size:13px;line-height:1.5}
   .shell .preview{font-size:11px;line-height:1.6}
 }
+
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.choice .dot{display:inline-flex;align-items:center;justify-content:center;align-self:center;box-sizing:border-box;width:22px;height:22px;flex:0 0 22px;padding:0;line-height:1;font-size:12px;font-weight:600;font-variant-numeric:lining-nums tabular-nums}
+.choice.multiple[aria-checked=true] .dot{color:#fff}
+.choice.multiple[aria-checked=true] .dot:after{content:none}
+.choice:not(.multiple)[aria-checked=true] .dot:after{content:'';display:block;width:8px;height:8px;flex:none;border-radius:50%;background:#fff}
