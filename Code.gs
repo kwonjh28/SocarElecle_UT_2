@@ -92,7 +92,7 @@ function pathLabels_(type,d){
   switch(type){
     case 'prototype_ready':return ['지도'];
     case 'bike_select':return ['자전거 마커'+(d.distance?' ('+d.distance+')':''),'상세 정보'];
-    case 'filter_toggle':return ['필터',(filterNames[d.filter]||'필터')+(d.enabled?' 켜기':' 끄기'),'지도'];
+    case 'filter_toggle':return [(filterNames[d.filter]||'필터')+(d.enabled?' 켜기':' 끄기')];
     case 'locate':return ['현재 위치','지도'];
     case 'mission_open':return ['미션 보기'];
     case 'mission_close':return ['미션 닫기'];

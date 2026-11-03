@@ -24,3 +24,5 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .choice.multiple[aria-checked=true] .dot{color:#fff}
 .choice.multiple[aria-checked=true] .dot:after{content:none}
 .choice:not(.multiple)[aria-checked=true] .dot:after{content:'';display:block;width:8px;height:8px;flex:none;border-radius:50%;background:#fff}
+
+.shell h1.mission-copy{font-size:20px;line-height:1.6;letter-spacing:-.6px}.mission-copy>span{display:block;white-space:nowrap}@media(max-width:599px){.shell h1.mission-copy{font-size:clamp(16px,4.85vw,20px)}}
