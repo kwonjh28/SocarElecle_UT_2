@@ -637,7 +637,7 @@ export default function App() {
       />
       {missionOpen && (
         <dialog ref={missionDialog} className="mission-dialog" aria-labelledby="mission-heading" onCancel={(event) => {event.preventDefault();closeMission()}}>
-          <span className="mission-eyebrow">태스크 1 · 미션</span>
+          <span className="mission-eyebrow">태스크 1 미션</span>
           <h2 id="mission-heading" className="mission-copy"><span>최근에 정비가 된 자전거들 중,</span><span>사용자와 가장 가까이 위치한 자전거를</span><span>잠금해제 해주세요.</span></h2>
           <button className="mission-close" onClick={closeMission}>닫기</button>
         </dialog>

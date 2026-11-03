@@ -50,22 +50,22 @@ function doGet(e) {
 
 function saveMission_(ss,session,participantId,m,events) {
   const uuid=/^[a-f0-9-]{36}$/;
-  if(!uuid.test(m.attemptId||'')||!['running','success'].includes(m.status))throw Error('잘못된 미션 기록입니다.');
+  if(!uuid.test(m.attemptId||'')||!['running','success','failure'].includes(m.status))throw Error('잘못된 미션 기록입니다.');
   const numeric=['activeSeconds','totalSeconds','revision'];
   if(numeric.some(key=>!Number.isFinite(m[key])||m[key]<0)||!Number.isInteger(m.revision))throw Error('잘못된 측정값입니다.');
   if(!Number.isFinite(Date.parse(m.startedAt))||(m.endedAt&&!Number.isFinite(Date.parse(m.endedAt))))throw Error('잘못된 미션 시각입니다.');
   const first=(value)=>value===null||value===undefined?'':Number.isFinite(value)&&value>=0?value:'';
-  const eventTypes=['prototype_ready','mission_open','mission_close','filter_toggle','bike_select','locate','inactive_click','unlock_attempt','mission_success','tab_hidden','tab_visible','page_exit'];
+  const eventTypes=['prototype_ready','mission_open','mission_close','filter_toggle','bike_select','locate','inactive_click','unlock_attempt','mission_success','mission_failure','tab_hidden','tab_visible','page_exit'];
   if(!Array.isArray(events)||events.length>4||events.some(event=>!uuid.test(event.id||'')||!eventTypes.includes(event.type)||!Number.isInteger(event.seq)||event.seq<1||!Number.isFinite(event.seconds)||event.seconds<0||!Number.isFinite(Date.parse(event.at))))throw Error('잘못된 행동 기록입니다.');
   let summary=ss.getSheetByName('UT_missions');
   const summaryHeaders=['session_key','participant_id','attempt_id','mission_status','started_at','ended_at','total_seconds','active_seconds','first_filter_seconds','first_recent_filter_seconds','filter_discovery','revision','last_saved_at'];
   if(!summary){summary=ss.insertSheet('UT_missions');summary.appendRow(summaryHeaders);summary.setFrozenRows(1);}
   const rows=summary.getDataRange().getValues();
   const index=rows.findIndex((row,i)=>i>0&&row[0]===session&&row[2]===m.attemptId);
-  const discovery=m.firstRecentFilterSeconds===null||m.firstRecentFilterSeconds===undefined?(m.status==='success'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)';
+  const discovery=m.firstRecentFilterSeconds===null||m.firstRecentFilterSeconds===undefined?(m.status!=='running'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)';
   const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString()];
   if(index<0)summary.appendRow(row);
-  else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]==='success'&&m.status!=='success'))summary.getRange(index+1,1,1,row.length).setValues([row]);
+  else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]!=='running'&&m.status==='running'))summary.getRange(index+1,1,1,row.length).setValues([row]);
   if(events.length){
     const log=getEventStore_(ss);
     const seen=new Set(log.getDataRange().getValues().slice(1).map(row=>row[3]));
@@ -98,6 +98,7 @@ function pathLabels_(type,d){
     case 'mission_close':return ['미션 닫기'];
     case 'unlock_attempt':return ['잠금해제'+(d.success?'':' (다른 자전거)')];
     case 'mission_success':return ['미션 완료'];
+    case 'mission_failure':return ['미션 종료 (오답)'];
     case 'inactive_click':return [({fare_info:'요금 안내',browse:'둘러보기',qr_scan:'QR 스캔',ring:'소리내기',report:'신고하기',reserve:'예약하기'})[d.button]||'버튼'];
     default:return [];
   }

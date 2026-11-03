@@ -1,5 +1,5 @@
 /* No participant-facing clock. Same-origin prototype events only. */
-window.createMissionTracker = function(state, persist, api, onSuccess) {
+window.createMissionTracker = function(state, persist, api, onComplete) {
   let clock = null, reasons = new Set(), inFlight = false, lastSent = '', stopped = false;
   const now = () => performance.now();
   function checkpoint() {
@@ -17,7 +17,7 @@ window.createMissionTracker = function(state, persist, api, onSuccess) {
   function summary() {
     const m=state.mission;
     if(!m) return null;
-    return {attemptId:m.attemptId,startedAt:m.startedAt,endedAt:m.endedAt || '',status:m.status,activeSeconds:seconds(),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstRecentFilterSeconds===null?(m.status==='success'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)',revision:m.events.length};
+    return {attemptId:m.attemptId,startedAt:m.startedAt,endedAt:m.endedAt || '',status:m.status,activeSeconds:seconds(),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstRecentFilterSeconds===null?(m.status!=='running'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)',revision:m.events.length};
   }
   async function flush() {
     if(inFlight || !state.mission || !window.UT_CONFIG.endpoint || !state.participantId || stopped) return;
@@ -32,7 +32,7 @@ window.createMissionTracker = function(state, persist, api, onSuccess) {
   }
   function ready() {
     if(state.step!==6)return;
-    if(state.mission?.status==='success'){onSuccess();return;}
+    if(state.mission && state.mission.status!=='running'){onComplete();return;}
     if(!state.mission)state.mission={attemptId:crypto.randomUUID(),startedAt:new Date().toISOString(),activeMs:0,status:'running',firstFilterSeconds:null,firstRecentFilterSeconds:null,events:[],acked:0};
     if(document.hidden)reasons.add('hidden');
     if(clock!==null)return;
@@ -59,9 +59,9 @@ window.createMissionTracker = function(state, persist, api, onSuccess) {
       record(type,details);
     } else if(['bike_select','locate','inactive_click','unlock_attempt'].includes(type)) {
       record(type,details);
-      if(type==='unlock_attempt' && details.success===true) {
-        checkpoint();state.mission.status='success';state.mission.endedAt=new Date().toISOString();clock=null;
-        record('mission_success',{bikeId:details.bikeId});persist();flush();onSuccess();
+      if(type==='unlock_attempt') {
+        checkpoint();state.mission.status=details.success===true?'success':'failure';state.mission.endedAt=new Date().toISOString();clock=null;
+        record(details.success===true?'mission_success':'mission_failure',{bikeId:details.bikeId});persist();flush();onComplete();
       }
     }
     // No map drag/pointermove events are collected.
