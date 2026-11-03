@@ -3,3 +3,18 @@
 /* Mobile fills the available browser viewport; desktop keeps a 393:852 phone frame. */
 .test{position:relative}.finish-test{position:absolute;z-index:50;right:12px;bottom:calc(92px + env(safe-area-inset-bottom));border:1px solid #dce2e9;border-radius:24px;background:rgba(255,255,255,.95);box-shadow:0 2px 12px #19233415;padding:9px 13px;color:#526174;font-size:12px;font-weight:600}
 @media(min-width:600px){body{min-height:100dvh;display:grid;place-items:center;padding:24px}#app{width:min(393px,calc((100dvh - 48px)*393/852));height:min(852px,calc(100dvh - 48px));min-height:0;max-width:none;border-radius:24px;overflow:auto;box-shadow:0 16px 60px #182c4620}.shell{min-height:100%;padding:0 24px}.test{height:100%}.header{padding-top:24px}}
+
+/* Survey typography for mobile; desktop scale remains unchanged. */
+@media(max-width:599px){
+  .shell .header{font-size:12px;line-height:1.5}
+  .shell .status{font-size:11px;line-height:1.5}
+  .shell .eyebrow{font-size:12px;line-height:1.5;margin-bottom:12px}
+  .shell h1{font-size:22px;font-weight:600;line-height:1.45;letter-spacing:-.6px}
+  .shell p{font-size:14px;line-height:1.6}
+  .shell .choice{font-size:16px;line-height:1.5;min-height:56px;padding:15px 16px}
+  .shell .other{font-size:16px;line-height:1.5}
+  .shell .primary,.shell .back{font-size:16px;font-weight:600;line-height:1.5}
+  .shell .privacy{font-size:13px;line-height:1.7}
+  .shell .error{font-size:13px;line-height:1.5}
+  .shell .preview{font-size:11px;line-height:1.6}
+}
