@@ -60,3 +60,5 @@ GitHub Pages 배포 파일: index.html, style.css, survey.js, config.js, prototy
 최근 정비 + 100m 이내 필터 결과는 31%·95m와 43%·100m의 두 대입니다. 정답은 31%·95m입니다.
 
 2026-11-04 중간 답변 저장: 선택·입력 후 800ms 및 문항 이동 시 save 요청. UT_responses.status=in_progress, answers_saved_at/answer_revision/last_step 추가. 최종 제출은 required 검증 후 completed, submitted_at 기록. 이전 revision·완료 후 draft는 무시. 통신 실패 시 최신 snapshot 재시도. 갑작스러운 종료 직전의 미전송 입력은 보장하지 않음.
+
+클릭 경로 간소화: bike_select는 자전거 선택 (거리) 한 항목만 표시하고, unlock_attempt는 잠금해제 (정답/오답)로 결과까지 표시합니다. 자동으로 따라오는 상세 정보·미션 종료는 별도 단계로 표시하지 않습니다. 현재 위치 뒤의 지도도 생략합니다. 원본 이벤트와 action_count는 유지합니다.

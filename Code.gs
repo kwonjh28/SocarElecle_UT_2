@@ -96,14 +96,14 @@ function pathLabels_(type,d){
   const filterNames={recent:'최근 정비',near:'100m 이내',charged:'50% 이상'};
   switch(type){
     case 'prototype_ready':return ['지도'];
-    case 'bike_select':return ['자전거 마커'+(d.distance?' ('+d.distance+')':''),'상세 정보'];
+    case 'bike_select':return ['자전거 선택'+(d.distance?' ('+d.distance+')':'')];
     case 'filter_toggle':return [(filterNames[d.filter]||'필터')+(d.enabled?' 켜기':' 끄기')];
-    case 'locate':return ['현재 위치','지도'];
+    case 'locate':return ['현재 위치'];
     case 'mission_open':return ['미션 보기'];
     case 'mission_close':return ['미션 닫기'];
-    case 'unlock_attempt':return ['잠금해제'+(d.success?'':' (다른 자전거)')];
-    case 'mission_success':return ['미션 완료'];
-    case 'mission_failure':return ['미션 종료 (오답)'];
+    case 'unlock_attempt':return ['잠금해제 ('+(d.success?'정답':'오답')+')'];
+    case 'mission_success':return [];
+    case 'mission_failure':return [];
     case 'inactive_click':return [({fare_info:'요금 안내',browse:'둘러보기',qr_scan:'QR 스캔',ring:'소리내기',report:'신고하기',reserve:'예약하기'})[d.button]||'버튼'];
     default:return [];
   }
@@ -125,7 +125,7 @@ function rebuildClickPaths_(ss){
   sheet.setColumnWidth(1,120);sheet.setColumnWidth(2,760);sheet.setColumnWidth(3,110);sheet.setColumnWidth(4,200);
   if(data.length)sheet.getRange(2,2,data.length,1).setWrap(true);
 }
-function migrateClickPaths(){rebuildClickPaths_(SpreadsheetApp.openById(SPREADSHEET_ID));}
+function migrateClickPaths(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{rebuildClickPaths_(SpreadsheetApp.openById(SPREADSHEET_ID));updateFieldGuide();console.log('기존 클릭 경로를 간결한 표시로 갱신했습니다. 원본 이벤트는 유지됩니다.');}finally{lock.releaseLock();}}
 
 // Editor-only maintenance; never exposed through doGet.
 function resetParticipationRecords(){
@@ -181,7 +181,7 @@ function updateFieldGuide(){
     ['UT_missions','filter_discovery','필터 발견 여부','필터 3종 중 하나라도 켜면 발견. 종료까지 한 번도 켜지 않으면 발견하지 못함. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 발견으로 유지합니다.'],
     ['UT_missions','revision','저장 버전 (내부용)','발생한 이벤트 수를 기준으로 최신 기록을 구분합니다. 늦게 도착한 과거 기록이 최신 기록을 덮어쓰는 것을 막습니다. 분석용 점수가 아닙니다.'],
     ['UT_missions / UT_events','last_saved_at','마지막 저장 시각','서버가 해당 기록을 마지막으로 저장한 시각입니다. UTC(Z)입니다.'],
-    ['UT_events','click_path','화면·조작 순서','참가자 한 명당 한 행으로 주요 행동을 → 로 연결합니다. 예: 지도 → 100m 이내 켜기 → 자전거 마커 → 상세 정보 → 잠금해제. 지도 드래그는 기록하지 않습니다.'],
+    ['UT_events','click_path','화면·조작 순서','참가자 한 명당 한 행으로 주요 행동을 → 로 연결합니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
     ['UT_events','action_count','원본 이벤트 수','숨김·복귀 등 경로에 표시하지 않는 이벤트도 포함한 원본 기록 수입니다. 클릭 횟수나 경로 단계 수와 같지 않습니다.'],
     ['UT_event_store (숨김)','event_id','이벤트 ID','같은 이벤트가 재전송되어도 중복 저장하지 않도록 사용하는 내부 식별자입니다.'],
     ['UT_event_store (숨김)','sequence','이벤트 발생 순번','해당 미션에서 행동이 발생한 순서입니다.'],
