@@ -23,6 +23,7 @@ function doGet(e) {
     }
     const rowNumber=index+1;
     const id=sheet.getRange(rowNumber,2).getValue();
+    if(payload.missions){if(!Array.isArray(payload.missions)||payload.missions.length>2)throw Error('잘못된 미션 목록입니다.');payload.missions.forEach(m=>saveMission_(ss,payload.session,id,m,[]));}
     if(payload.mission) saveMission_(ss,payload.session,id,payload.mission,payload.events||[]);
     if(e.parameter.action==='save')saveDraftAnswers_(sheet,rowNumber,payload);
     if(e.parameter.action==='submit'){
@@ -56,6 +57,8 @@ function doGet(e) {
 function saveMission_(ss,session,participantId,m,events) {
   const uuid=/^[a-f0-9-]{36}$/;
   if(!uuid.test(m.attemptId||'')||!['running','success','failure'].includes(m.status))throw Error('잘못된 미션 기록입니다.');
+  const missionNumber=m.missionNumber===undefined?1:m.missionNumber;
+  if(![1,2].includes(missionNumber))throw Error('잘못된 미션 번호입니다.');
   const numeric=['activeSeconds','totalSeconds','revision'];
   if(numeric.some(key=>!Number.isFinite(m[key])||m[key]<0)||!Number.isInteger(m.revision))throw Error('잘못된 측정값입니다.');
   if(!Number.isFinite(Date.parse(m.startedAt))||(m.endedAt&&!Number.isFinite(Date.parse(m.endedAt))))throw Error('잘못된 미션 시각입니다.');
@@ -63,12 +66,13 @@ function saveMission_(ss,session,participantId,m,events) {
   const eventTypes=['prototype_ready','mission_open','mission_close','filter_toggle','bike_select','locate','inactive_click','unlock_attempt','mission_success','mission_failure','tab_hidden','tab_visible','page_exit'];
   if(!Array.isArray(events)||events.length>4||events.some(event=>!uuid.test(event.id||'')||!eventTypes.includes(event.type)||!Number.isInteger(event.seq)||event.seq<1||!Number.isFinite(event.seconds)||event.seconds<0||!Number.isFinite(Date.parse(event.at))))throw Error('잘못된 행동 기록입니다.');
   let summary=ss.getSheetByName('UT_missions');
-  const summaryHeaders=['session_key','participant_id','attempt_id','mission_status','started_at','ended_at','total_seconds','active_seconds','first_filter_seconds','first_recent_filter_seconds','filter_discovery','revision','last_saved_at'];
+  const summaryHeaders=['session_key','participant_id','attempt_id','mission_status','started_at','ended_at','total_seconds','active_seconds','first_filter_seconds','first_recent_filter_seconds','filter_discovery','revision','last_saved_at','mission_number','task_mode'];
   if(!summary){summary=ss.insertSheet('UT_missions');summary.appendRow(summaryHeaders);summary.setFrozenRows(1);}
+  summary.getRange(1,1,1,summaryHeaders.length).setValues([summaryHeaders]);
   const rows=summary.getDataRange().getValues();
   const index=rows.findIndex((row,i)=>i>0&&row[0]===session&&row[2]===m.attemptId);
-  const discovery=m.firstFilterSeconds===null||m.firstFilterSeconds===undefined?(m.status!=='running'?'발견하지 못함':'미확인'):'발견';
-  const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString()];
+  const discovery=m.firstFilterSeconds===null||m.firstFilterSeconds===undefined?(m.status!=='running'?(missionNumber===2?'미사용':'발견하지 못함'):'미확인'):(missionNumber===2?'사용':'발견');
+  const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString(),missionNumber,missionNumber===2?'filter_prompted':'unprompted'];
   if(index<0)summary.appendRow(row);
   else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]!=='running'&&m.status==='running'))summary.getRange(index+1,1,1,row.length).setValues([row]);
   if(events.length){
@@ -112,7 +116,8 @@ function activeEventContext_(ss){
   const responses=ss.getSheetByName('UT_responses'),missions=ss.getSheetByName('UT_missions');
   const participants=new Map((responses?responses.getDataRange().getValues().slice(1):[]).filter(r=>r[0]&&r[1]).map(r=>[String(r[0]),String(r[1])]));
   const attempts=new Set((missions?missions.getDataRange().getValues().slice(1):[]).filter(r=>participants.has(String(r[0]))).map(r=>String(r[0])+'|'+String(r[2])));
-  return {participants,attempts};
+  const missionNumbers=new Map((missions?missions.getDataRange().getValues().slice(1):[]).map(r=>[String(r[0])+'|'+String(r[2]),Number(r[13])||1]));
+  return {participants,attempts,missionNumbers};
 }
 function currentEvent_(row,context){return context.participants.has(String(row[0]))&&context.attempts.has(String(row[0])+'|'+String(row[2]));}
 function clickPathRows_(events,context,savedAt){
@@ -120,8 +125,8 @@ function clickPathRows_(events,context,savedAt){
   events.filter(row=>currentEvent_(row,context)).forEach(row=>{const session=String(row[0]);if(!groups.has(session))groups.set(session,[]);groups.get(session).push(row);});
   return [...groups].sort(([a],[b])=>Number(context.participants.get(a).slice(1))-Number(context.participants.get(b).slice(1))).map(([session,rows])=>{
     rows.sort((a,b)=>a[2]===b[2]?Number(a[4])-Number(b[4]):Date.parse(a[5])-Date.parse(b[5]));
-    const labels=[];
-    rows.forEach(row=>{let d={};try{d=JSON.parse(row[8]||'{}');}catch(_){};pathLabels_(row[6],d).forEach(label=>{if(labels[labels.length-1]!==label)labels.push(label);});});
+    const labels=[],missionNumbers=rows.map(r=>context.missionNumbers?.get(String(r[0])+'|'+String(r[2]))||1),multiple=new Set(missionNumbers).size>1;let previousAttempt=null;
+    rows.forEach((row,index)=>{if(multiple&&row[2]!==previousAttempt){labels.push('미션 '+missionNumbers[index]);previousAttempt=row[2];}let d={};try{d=JSON.parse(row[8]||'{}');}catch(_){};pathLabels_(row[6],d).forEach(label=>{if(labels[labels.length-1]!==label)labels.push(label);});});
     return [context.participants.get(session),labels.join(' → '),rows.length,savedAt];
   });
 }
@@ -177,7 +182,7 @@ function updateFieldGuide(){
     ['공통','participant_id','참가자 ID','P01, P02 순서로 생성되는 익명 참가자 번호입니다. 각 시트의 같은 참가자를 연결합니다.'],
     ['UT_responses','answers_saved_at','답변 마지막 저장 시각','선택 또는 입력이 잠시 멈춘 뒤와 문항 이동 시 자동 저장한 시각입니다. 최종 제출 시에도 갱신됩니다. UTC(Z)입니다.'],
     ['UT_responses','answer_revision','답변 저장 버전','이전 답변이 늦게 도착해 최신 답변을 덮어쓰지 않도록 하는 내부 순번입니다.'],
-    ['UT_responses','last_step','마지막 저장 단계','1 연령대 / 2 성별 / 3 경험 / 4 빈도 / 5 이용 상황 / 6 선택 조건 / 7 미션 안내·수행 / 8 사후 Q1 / 9 사후 Q2 / 10 최종 제출 완료. 이탈을 확정하는 값은 아닙니다.'],
+    ['UT_responses','last_step','마지막 저장 단계','1 연령대 / 2 성별 / 3 경험 / 4 빈도 / 5 이용 상황 / 6 선택 조건 / 7 미션1 또는 미션2 안내·수행 / 8 사후 Q1 / 9 사후 Q2 / 10 최종 제출 완료. 이탈을 확정하는 값은 아닙니다.'],
     ['UT_responses','status','설문 제출 상태','started: 참여 등록됨 / in_progress: 답변 중간 저장됨 / completed: 마지막 설문까지 제출 완료. 미션 정답 여부와는 별개입니다.'],
     ['UT_responses','submitted_at','설문 제출 시각','마지막 설문 제출이 완료된 시각입니다. ISO 8601 UTC(Z)이며 한국·일본 시각은 9시간을 더합니다.'],
     ['UT_responses','age','만 나이 (미사용)','기존 호환용 빈 열입니다. 현재 연령대는 age_group에 저장합니다.'],
@@ -199,17 +204,19 @@ function updateFieldGuide(){
     ['UT_responses','criteria_rank_2','선택 조건 2순위','두 번째로 선택한 조건입니다. 1개만 선택했다면 빈칸입니다.'],
     ['UT_responses','criteria_rank_3','선택 조건 3순위','세 번째로 선택한 조건입니다. 1~2개만 선택했다면 빈칸입니다.'],
     ['UT_missions / UT_event_store','attempt_id','미션 시도 ID','하나의 미션 수행 기록을 연결하는 내부 식별자입니다.'],
-    ['UT_missions','mission_status','미션 결과','running: 진행 중 / success: 정답 자전거 잠금해제 / failure: 다른 자전거 잠금해제. 어느 자전거든 잠금해제하면 마지막 설문으로 이동합니다.'],
+    ['UT_missions','mission_number','미션 번호','1: 최근 정비 자전거 중 가장 가까운 자전거(31%·95m) / 2: 필터를 이용해 100m 이내 자전거 중 배터리가 가장 많은 자전거(94%·60m). 미션1에서 어떤 필터도 켜지 않은 참가자만 미션2를 진행합니다.'],
+    ['UT_missions','task_mode','필터 사용 안내 여부','unprompted: 미션1, 필터 사용을 따로 요청하지 않음 / filter_prompted: 미션2, 필터 사용을 명시적으로 요청. 두 미션을 자발적 발견 지표로 합산하지 않습니다.'],
+    ['UT_missions','mission_status','미션 결과','running: 진행 중 / success: 정답 자전거 잠금해제 / failure: 오답 자전거 잠금해제 또는 미션2에서 필터를 사용하지 않고 잠금해제. 미션1 종료 시 미션2 대상이면 미션2 안내로, 나머지는 사후 설문으로 이동합니다.'],
     ['UT_missions','started_at','미션 시작 시각','시작하기를 누른 뒤 프로토타입이 준비된 시각입니다. UTC(Z)입니다.'],
     ['UT_missions','ended_at','미션 종료 시각','자전거 잠금해제를 누른 시각입니다. 진행 중이거나 화면을 끈 채 종료하면 빈칸입니다. UTC(Z)입니다.'],
     ['UT_missions','total_seconds','전체 소요 시간 (초)','미션 시작부터 종료까지 경과한 전체 시간입니다. 탭 숨김·미션 보기 시간도 포함합니다. 진행 중에는 마지막 저장 시점까지의 시간입니다.'],
     ['UT_missions','active_seconds','실제 수행 시간 (초)','전체 시간에서 탭이 가려진 시간과 미션 보기 팝업을 열어둔 시간을 제외합니다. 두 상태가 겹쳐도 한 번만 제외합니다.'],
     ['UT_missions','first_filter_seconds','첫 필터 활성화까지 시간 (초)','최근 정비·100m 이내·50% 이상 중 어떤 필터든 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
     ['UT_missions','first_recent_filter_seconds','최근 정비 첫 활성화까지 시간 (초)','최근 정비 필터를 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
-    ['UT_missions','filter_discovery','필터 발견 여부','필터 3종 중 하나라도 켜면 발견. 종료까지 한 번도 켜지 않으면 발견하지 못함. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 발견으로 유지합니다.'],
+    ['UT_missions','filter_discovery','필터 발견 여부','미션1: 하나라도 켜면 발견, 종료까지 켜지 않으면 발견하지 못함. 미션2: 안내 후 켜면 사용, 종료까지 켜지 않으면 미사용. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 사용 기록은 유지합니다.'],
     ['UT_missions','revision','저장 버전 (내부용)','발생한 이벤트 수를 기준으로 최신 기록을 구분합니다. 늦게 도착한 과거 기록이 최신 기록을 덮어쓰는 것을 막습니다. 분석용 점수가 아닙니다.'],
     ['UT_missions / UT_events','last_saved_at','마지막 저장 시각','서버가 해당 기록을 마지막으로 저장한 시각입니다. UTC(Z)입니다.'],
-    ['UT_events','click_path','화면·조작 순서','현재 UT_responses의 세션과 UT_missions의 미션 시도가 일치하는 원본만 사용하며, 세션별 한 행으로 주요 행동을 → 로 연결합니다. 참가자 번호가 재사용돼도 과거 세션은 합치지 않습니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
+    ['UT_events','click_path','화면·조작 순서','현재 UT_responses의 세션과 UT_missions의 미션 시도가 일치하는 원본만 사용하며, 세션별 한 행으로 주요 행동을 → 로 연결합니다. 참가자 번호가 재사용돼도 과거 세션은 합치지 않습니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 미션2를 진행한 참가자는 미션 1·미션 2 구분을 표시합니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
     ['UT_events','action_count','원본 이벤트 수','숨김·복귀 등 경로에 표시하지 않는 이벤트도 포함한 원본 기록 수입니다. 클릭 횟수나 경로 단계 수와 같지 않습니다.'],
     ['UT_event_archive (숨김)','과거 기록','과거 이벤트 보관','현재 참가자·미션과 연결되지 않는 과거 원본을 복구용으로 보관합니다. 현재 클릭 경로 집계에는 포함하지 않습니다.'],
     ['UT_event_store (숨김)','event_id','이벤트 ID','같은 이벤트가 재전송되어도 중복 저장하지 않도록 사용하는 내부 식별자입니다.'],
@@ -264,4 +271,16 @@ function verifyDraftSaving(){
     if(row[10]!=='30대'||row[7]!=='0회'||row[20]!=='없음'||row[24]!==8)throw Error('중간 답변 또는 이전 버전 방지 불일치');
     console.log('PASS 실제 시트 중간 저장, 이용 경험 없음 0회, 사후 일부 답변, 이전 답변 덮어쓰기 방지 확인');
   }finally{const rowNumber=find();if(rowNumber>1)sheet.deleteRow(rowNumber);console.log('검증용 참가자 행 정리 완료');}
+}
+
+function upgradeMissionSchema(){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const ss=SpreadsheetApp.openById(SPREADSHEET_ID),sheet=ss.getSheetByName('UT_missions');
+    if(sheet){
+      sheet.getRange(1,14,1,2).setValues([['mission_number','task_mode']]);
+      if(sheet.getLastRow()>1){const values=sheet.getRange(2,14,sheet.getLastRow()-1,2).getValues().map(r=>[Number(r[0])===2?2:1,Number(r[0])===2?'filter_prompted':'unprompted']);sheet.getRange(2,14,values.length,2).setValues(values);}
+    }
+    rebuildClickPaths_(ss);updateFieldGuide();console.log('기존 미션은 미션1로 유지, 미션 번호·사용 안내 여부 열 추가 완료');
+  }finally{lock.releaseLock();}
 }

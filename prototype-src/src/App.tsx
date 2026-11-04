@@ -4,6 +4,8 @@ function emit(type: string, details: Record<string, unknown> = {}) {
   if (window.parent !== window) window.parent.postMessage({source: 'elecle-prototype', type, details}, window.location.origin)
 }
 
+const secondMission = new URLSearchParams(window.location.search).get('mission') === '2'
+
 const A = `${import.meta.env.BASE_URL}assets`
 
 type Bike = {
@@ -601,7 +603,9 @@ export default function App() {
   }, [missionOpen])
   const openMission = () => { emit('mission_open'); setMissionOpen(true) }
   const closeMission = () => { emit('mission_close'); setMissionOpen(false); missionButton.current?.focus() }
-  const targetBike = bikes.filter(bike => bike.recent).reduce((closest, bike) => Number.parseInt(bike.distance) < Number.parseInt(closest.distance) ? bike : closest)
+  const targetBike = secondMission
+    ? bikes.filter(bike => Number.parseInt(bike.distance) <= 100).reduce((best,bike) => bike.battery > best.battery ? bike : best)
+    : bikes.filter(bike => bike.recent).reduce((closest,bike) => Number.parseInt(bike.distance) < Number.parseInt(closest.distance) ? bike : closest)
 
   const visibleBikes = useMemo(
     () =>
@@ -649,8 +653,9 @@ export default function App() {
       />
       {missionOpen && (
         <dialog ref={missionDialog} className="mission-dialog" aria-labelledby="mission-heading" onCancel={(event) => {event.preventDefault();closeMission()}}>
-          <span className="mission-eyebrow">미션</span>
-          <h2 id="mission-heading" className="mission-copy"><span className="mission-condition"><span className="condition-tag">조건 1</span><span>최근에 정비가 된 자전거들 중,</span></span><span className="mission-condition"><span className="condition-tag">조건 2</span><span>사용자와 가장 가까이 위치한 자전거를</span></span><span className="mission-action">잠금해제 해주세요.</span></h2>
+          <span className="mission-eyebrow">미션 {secondMission ? 2 : 1}</span>
+          {secondMission && <p className="mission-hint">이번에는 필터를 이용해 자전거를 찾아주세요.</p>}
+          <h2 id="mission-heading" className="mission-copy"><span className="mission-condition"><span className="condition-tag">조건 1</span><span>{secondMission ? "현재 위치에서 100m 이내에 있는 자전거 중," : "최근에 정비가 된 자전거들 중,"}</span></span><span className="mission-condition"><span className="condition-tag">조건 2</span><span>{secondMission ? "배터리 잔량이 가장 많은 자전거를" : "사용자와 가장 가까이 위치한 자전거를"}</span></span><span className="mission-action">잠금해제 해주세요.</span></h2>
           <button className="mission-close" onClick={closeMission}>닫기</button>
         </dialog>
       )}
