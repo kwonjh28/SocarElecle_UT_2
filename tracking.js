@@ -17,7 +17,7 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
   function summary() {
     const m=state.mission;
     if(!m) return null;
-    return {attemptId:m.attemptId,startedAt:m.startedAt,endedAt:m.endedAt || '',status:m.status,activeSeconds:seconds(),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstRecentFilterSeconds===null?(m.status!=='running'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)',revision:m.events.length};
+    return {attemptId:m.attemptId,startedAt:m.startedAt,endedAt:m.endedAt || '',status:m.status,activeSeconds:seconds(),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstFilterSeconds===null?(m.status!=='running'?'발견하지 못함':'미확인'):'발견',revision:m.events.length};
   }
   async function flush() {
     if(inFlight || !state.mission || !window.UT_CONFIG.endpoint || !state.participantId || stopped) return;
@@ -54,7 +54,7 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
     else if(type==='mission_close') {record(type);reasons.delete('mission');checkpoint();}
     else if(type==='filter_toggle') {
       const time=seconds();
-      if(state.mission.firstFilterSeconds===null)state.mission.firstFilterSeconds=time;
+      if(details.enabled && state.mission.firstFilterSeconds===null)state.mission.firstFilterSeconds=time;
       if(details.filter==='recent' && details.enabled && state.mission.firstRecentFilterSeconds===null)state.mission.firstRecentFilterSeconds=time;
       record(type,details);
     } else if(['bike_select','locate','inactive_click','unlock_attempt'].includes(type)) {

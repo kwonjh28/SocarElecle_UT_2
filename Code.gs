@@ -62,7 +62,7 @@ function saveMission_(ss,session,participantId,m,events) {
   if(!summary){summary=ss.insertSheet('UT_missions');summary.appendRow(summaryHeaders);summary.setFrozenRows(1);}
   const rows=summary.getDataRange().getValues();
   const index=rows.findIndex((row,i)=>i>0&&row[0]===session&&row[2]===m.attemptId);
-  const discovery=m.firstRecentFilterSeconds===null||m.firstRecentFilterSeconds===undefined?(m.status!=='running'?'발견하지 못함':'미확인'):'발견(힌트 여부 미기록)';
+  const discovery=m.firstFilterSeconds===null||m.firstFilterSeconds===undefined?(m.status!=='running'?'발견하지 못함':'미확인'):'발견';
   const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString()];
   if(index<0)summary.appendRow(row);
   else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]!=='running'&&m.status==='running'))summary.getRange(index+1,1,1,row.length).setValues([row]);
@@ -121,3 +121,71 @@ function rebuildClickPaths_(ss){
   if(data.length)sheet.getRange(2,2,data.length,1).setWrap(true);
 }
 function migrateClickPaths(){rebuildClickPaths_(SpreadsheetApp.openById(SPREADSHEET_ID));}
+
+// Editor-only maintenance; never exposed through doGet.
+function resetParticipationRecords(){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const ss=SpreadsheetApp.openById(SPREADSHEET_ID);
+    ['UT_responses','UT_missions','UT_events','UT_event_store'].forEach(name=>{
+      const sheet=ss.getSheetByName(name);
+      if(sheet&&sheet.getLastRow()>1)sheet.getRange(2,1,sheet.getLastRow()-1,sheet.getLastColumn()).clearContent();
+    });
+    updateFieldGuide();
+    console.log('참여 기록 초기화 완료. 헤더와 항목 설명은 유지됩니다.');
+  }finally{lock.releaseLock();}
+}
+
+function updateFieldGuide(){
+  const ss=SpreadsheetApp.openById(SPREADSHEET_ID);
+  const rows=[['시트','항목명','한글 이름','의미 / 기록 기준'],
+    ['공통','session_key','참여 세션 키','익명 참여 세션을 연결하는 내부 식별자입니다. 개인정보가 아닙니다.'],
+    ['공통','participant_id','참가자 ID','P01, P02 순서로 생성되는 익명 참가자 번호입니다. 각 시트의 같은 참가자를 연결합니다.'],
+    ['UT_responses','status','설문 제출 상태','started: 참여 등록됨 / completed: 마지막 설문까지 제출 완료. 미션 정답 여부와는 별개입니다.'],
+    ['UT_responses','submitted_at','설문 제출 시각','마지막 설문 제출이 완료된 시각입니다. ISO 8601 UTC(Z)이며 한국·일본 시각은 9시간을 더합니다.'],
+    ['UT_responses','age','만 나이 (미사용)','기존 호환용 빈 열입니다. 현재 연령대는 age_group에 저장합니다.'],
+    ['UT_responses','age_group','연령대','10대 / 20대 / 30대 / 40대 / 50대 / 60대 이상'],
+    ['UT_responses','gender','성별','남성 / 여성 / 응답하지 않음'],
+    ['UT_responses','experience','이용 경험','공유 전기자전거 이용 경험: 있다 / 없다'],
+    ['UT_responses','frequency','이용 빈도','선택한 이용 빈도입니다. 이용 경험이 없으면 0회로 자동 저장하며 experience도 함께 남깁니다.'],
+    ['UT_responses','usage_question_type','이용 상황 질문 유형','experienced: 실제 이용 상황 / expected: 이용 경험이 없는 참가자의 예상 이용 상황'],
+    ['UT_responses','usage_situations','이용 상황 응답 전체','선택한 순서(중요도 순)대로 1~3개를 | 로 구분해 저장합니다.'],
+    ['UT_responses','usage_other','기타 이용 상황','이용 상황에서 기타를 선택했을 때 직접 입력한 내용입니다. 미선택이면 빈칸입니다.'],
+    ['UT_responses','usage_rank_1','이용 상황 1순위','첫 번째로 선택한 이용 상황입니다.'],
+    ['UT_responses','usage_rank_2','이용 상황 2순위','두 번째로 선택한 이용 상황입니다. 1개만 선택했다면 빈칸입니다.'],
+    ['UT_responses','usage_rank_3','이용 상황 3순위','세 번째로 선택한 이용 상황입니다. 1~2개만 선택했다면 빈칸입니다.'],
+    ['UT_responses','criteria','자전거 선택 조건 전체','마지막 설문의 선택 조건을 중요도 순서대로 1~3개, | 로 구분해 저장합니다.'],
+    ['UT_responses','other','기타 선택 조건','마지막 설문에서 기타를 선택했을 때 직접 입력한 내용입니다. 테스트 전용 항목이 아닙니다.'],
+    ['UT_responses','criteria_rank_1','선택 조건 1순위','첫 번째로 선택한 자전거 선택 조건입니다.'],
+    ['UT_responses','criteria_rank_2','선택 조건 2순위','두 번째로 선택한 조건입니다. 1개만 선택했다면 빈칸입니다.'],
+    ['UT_responses','criteria_rank_3','선택 조건 3순위','세 번째로 선택한 조건입니다. 1~2개만 선택했다면 빈칸입니다.'],
+    ['UT_missions / UT_event_store','attempt_id','미션 시도 ID','하나의 미션 수행 기록을 연결하는 내부 식별자입니다.'],
+    ['UT_missions','mission_status','미션 결과','running: 진행 중 / success: 정답 자전거 잠금해제 / failure: 다른 자전거 잠금해제. 어느 자전거든 잠금해제하면 마지막 설문으로 이동합니다.'],
+    ['UT_missions','started_at','미션 시작 시각','시작하기를 누른 뒤 프로토타입이 준비된 시각입니다. UTC(Z)입니다.'],
+    ['UT_missions','ended_at','미션 종료 시각','자전거 잠금해제를 누른 시각입니다. 진행 중이거나 화면을 끈 채 종료하면 빈칸입니다. UTC(Z)입니다.'],
+    ['UT_missions','total_seconds','전체 소요 시간 (초)','미션 시작부터 종료까지 경과한 전체 시간입니다. 탭 숨김·미션 보기 시간도 포함합니다. 진행 중에는 마지막 저장 시점까지의 시간입니다.'],
+    ['UT_missions','active_seconds','실제 수행 시간 (초)','전체 시간에서 탭이 가려진 시간과 미션 보기 팝업을 열어둔 시간을 제외합니다. 두 상태가 겹쳐도 한 번만 제외합니다.'],
+    ['UT_missions','first_filter_seconds','첫 필터 활성화까지 시간 (초)','최근 정비·100m 이내·50% 이상 중 어떤 필터든 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
+    ['UT_missions','first_recent_filter_seconds','최근 정비 첫 활성화까지 시간 (초)','최근 정비 필터를 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
+    ['UT_missions','filter_discovery','필터 발견 여부','필터 3종 중 하나라도 켜면 발견. 종료까지 한 번도 켜지 않으면 발견하지 못함. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 발견으로 유지합니다.'],
+    ['UT_missions','revision','저장 버전 (내부용)','발생한 이벤트 수를 기준으로 최신 기록을 구분합니다. 늦게 도착한 과거 기록이 최신 기록을 덮어쓰는 것을 막습니다. 분석용 점수가 아닙니다.'],
+    ['UT_missions / UT_events','last_saved_at','마지막 저장 시각','서버가 해당 기록을 마지막으로 저장한 시각입니다. UTC(Z)입니다.'],
+    ['UT_events','click_path','화면·조작 순서','참가자 한 명당 한 행으로 주요 행동을 → 로 연결합니다. 예: 지도 → 100m 이내 켜기 → 자전거 마커 → 상세 정보 → 잠금해제. 지도 드래그는 기록하지 않습니다.'],
+    ['UT_events','action_count','원본 이벤트 수','숨김·복귀 등 경로에 표시하지 않는 이벤트도 포함한 원본 기록 수입니다. 클릭 횟수나 경로 단계 수와 같지 않습니다.'],
+    ['UT_event_store (숨김)','event_id','이벤트 ID','같은 이벤트가 재전송되어도 중복 저장하지 않도록 사용하는 내부 식별자입니다.'],
+    ['UT_event_store (숨김)','sequence','이벤트 발생 순번','해당 미션에서 행동이 발생한 순서입니다.'],
+    ['UT_event_store (숨김)','event_at','이벤트 발생 시각','행동이 발생한 시각입니다. UTC(Z)입니다.'],
+    ['UT_event_store (숨김)','event_type','이벤트 종류','지도 준비, 필터 조작, 자전거 선택, 미션 보기/닫기, 잠금해제, 성공/오답 종료, 탭 숨김/복귀, 페이지 이탈 등입니다.'],
+    ['UT_event_store (숨김)','active_seconds','이벤트 발생까지 실제 수행 시간 (초)','미션 시작부터 해당 이벤트까지, 탭 숨김·미션 보기 시간을 제외한 누적 시간입니다.'],
+    ['UT_event_store (숨김)','details','이벤트 상세 정보','조작한 필터와 켜짐 여부, 선택 자전거 ID, 정답 여부 등을 JSON으로 저장하는 내부 원본입니다.'],
+    ['운영 참고','저장 / 이탈','저장 시점과 해석','일부 행동과 약 5초 주기로 저장합니다. 마지막 설문을 제출해야 설문 답변이 저장됩니다. 갑자기 창을 닫으면 마지막 미전송 기록이 누락될 수 있습니다.'],
+    ['운영 참고','초기화','참가자 번호','참여 기록을 모두 초기화하면 다음 신규 참가자는 P01부터 시작합니다. 이전 테스트 문구는 설문 항목이 아니라 기타에 입력했던 테스트 답변이며 초기화로 제거했습니다.']
+  ];
+  let sheet=ss.getSheetByName('항목 설명');if(!sheet)sheet=ss.insertSheet('항목 설명');
+  sheet.clearContents();sheet.getRange(1,1,rows.length,4).setValues(rows);
+  sheet.setFrozenRows(1);sheet.setColumnWidth(1,210);sheet.setColumnWidth(2,230);sheet.setColumnWidth(3,250);sheet.setColumnWidth(4,730);
+  sheet.getRange(1,1,1,4).setBackground('#1677ff').setFontColor('#ffffff').setFontWeight('bold');
+  sheet.getRange(2,1,rows.length-1,4).setWrap(true).setVerticalAlignment('top');
+  sheet.autoResizeRows(1,rows.length);
+  console.log('항목 설명 '+(rows.length-1)+'개 작성 완료');
+}

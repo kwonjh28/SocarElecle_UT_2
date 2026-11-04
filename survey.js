@@ -1,6 +1,6 @@
 const root=document.getElementById('app');
 const endpoint=window.UT_CONFIG.endpoint;
-const storageKey='elecle-ut-v2';
+const storageKey='elecle-ut-v3';
 let state;try{state=JSON.parse(sessionStorage.getItem(storageKey))}catch{}
 state=state||{step:1,session:crypto.randomUUID(),answers:{ageGroup:'',usage:[],usageOther:'',gender:'',experience:'',frequency:'',criteria:[],other:''},participantId:null};
 if(state.step===0)state.step=1;
