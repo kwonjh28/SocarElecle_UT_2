@@ -1,5 +1,5 @@
 const SPREADSHEET_ID = '1qbqs7qk_Y_sr6Qq8bAV2eh6YbM2PexjENcTQ5SlU_VU';
-const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3','post_positive','post_negative','answers_saved_at','answer_revision','last_step'];
+const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3','post_positive','post_negative','answers_saved_at','answer_revision','last_step','device_type','viewport_width','viewport_height'];
 function doGet(e) {
   const callback = e.parameter.callback || '';
   if (!/^ut_[a-zA-Z0-9_]+$/.test(callback)) return ContentService.createTextOutput('Invalid callback');
@@ -23,6 +23,10 @@ function doGet(e) {
     }
     const rowNumber=index+1;
     const id=sheet.getRange(rowNumber,2).getValue();
+    if(payload.client&&!sheet.getRange(rowNumber,26).getValue()){
+      const c=payload.client,dimension=v=>Number.isInteger(v)&&v>0&&v<=20000?v:'';
+      if(['mobile','tablet','desktop'].includes(c.deviceType))sheet.getRange(rowNumber,26,1,3).setValues([[c.deviceType,dimension(c.viewportWidth),dimension(c.viewportHeight)]]);
+    }
     if(payload.missions){if(!Array.isArray(payload.missions)||payload.missions.length>2)throw Error('잘못된 미션 목록입니다.');payload.missions.forEach(m=>saveMission_(ss,payload.session,id,m,[]));}
     if(payload.mission) saveMission_(ss,payload.session,id,payload.mission,payload.events||[]);
     if(e.parameter.action==='save')saveDraftAnswers_(sheet,rowNumber,payload);
@@ -178,6 +182,9 @@ function updateFieldGuide(){
   const ss=SpreadsheetApp.openById(SPREADSHEET_ID);
   const responses=ss.getSheetByName('UT_responses');if(responses)responses.getRange(1,1,1,HEADERS.length).setValues([HEADERS]);
   const rows=[['시트','항목명','한글 이름','의미 / 기록 기준'],
+    ['UT_responses','device_type','접속 기기 유형','브라우저 기기 정보로 추정: mobile 모바일 / tablet 태블릿 / desktop PC. 창 너비만으로 판단하지 않습니다. 기기 정보 위장·데스크톱 모드에서는 오분류될 수 있습니다. 추가 전 참여 기록은 빈칸입니다.'],
+    ['UT_responses','viewport_width','최초 화면 너비','이 세션에서 처음 기록한 브라우저 콘텐츠 영역의 너비(CSS px)입니다. PC 창 크기와 모바일 가로 회전 등 실제 표시 환경을 해석하는 보조값입니다. 물리 해상도가 아닙니다.'],
+    ['UT_responses','viewport_height','최초 화면 높이','이 세션에서 처음 기록한 브라우저 콘텐츠 영역의 높이(CSS px)입니다. 브라우저 도구 영역을 제외한 표시 높이이며 이후 창 크기 변경은 반영하지 않습니다.'],
     ['공통','session_key','참여 세션 키','익명 참여 세션을 연결하는 내부 식별자입니다. 개인정보가 아닙니다.'],
     ['공통','participant_id','참가자 ID','P01, P02 순서로 생성되는 익명 참가자 번호입니다. 각 시트의 같은 참가자를 연결합니다.'],
     ['UT_responses','answers_saved_at','답변 마지막 저장 시각','선택 또는 입력이 잠시 멈춘 뒤와 문항 이동 시 자동 저장한 시각입니다. 최종 제출 시에도 갱신됩니다. UTC(Z)입니다.'],

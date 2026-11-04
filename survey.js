@@ -4,6 +4,9 @@ const storageKey='elecle-ut-v4';
 let state;try{state=JSON.parse(sessionStorage.getItem(storageKey))}catch{}
 state=state||{step:1,session:crypto.randomUUID(),answers:{ageGroup:'',usage:[],usageOther:'',gender:'',experience:'',frequency:'',criteria:[],other:'',postPositive:'',postNegative:''},participantId:null};
 if(state.step===0)state.step=1;
+function detectDevice(nav){const ua=nav.userAgent||'';if(/iPad|Tablet|PlayBook|Silk/i.test(ua)||(/Macintosh/i.test(ua)&&nav.maxTouchPoints>1)||(/Android/i.test(ua)&&!/Mobile/i.test(ua)))return 'tablet';if(nav.userAgentData?.mobile||/Mobi|iPhone|iPod|Android/i.test(ua))return 'mobile';return 'desktop';}
+state.client=state.client||{deviceType:detectDevice(navigator),viewportWidth:window.innerWidth,viewportHeight:window.innerHeight};
+
 let busy=false;
 function setButtonLoading(button,loading,label='응답 저장 중…'){if(!button)return;if(loading){button.dataset.label=button.textContent;button.innerHTML=`<span class="cta-spinner" aria-hidden="true"></span><span>${label}</span>`;}else button.textContent=button.dataset.label||button.textContent;button.disabled=loading;button.setAttribute('aria-busy',String(loading));}
 const questions=[null,'연령대를 선택해 주세요.','성별을 선택해 주세요.','공유 전기자전거 서비스를 이용해 본 경험이 있나요?','공유 전기자전거를 얼마나 자주 이용하시나요?'];
@@ -19,7 +22,7 @@ function error(t){
   if(help){help.textContent=t||"특별히 없었다면 '없음'으로 작성해 주세요.";help.classList.toggle('feedback-error',!!t);document.getElementById('feedback')?.setAttribute('aria-invalid',String(!!t));document.getElementById('error').textContent='';if(t)help.scrollIntoView({block:'center',behavior:'smooth'});}
   else document.getElementById('error').textContent=t;
 }
-function api(action,extra={}){return new Promise((resolve,reject)=>{let cb='ut_'+crypto.randomUUID().replaceAll('-','');let script=document.createElement('script');let timer=setTimeout(()=>done(null),15000);function done(data){clearTimeout(timer);script.remove();delete window[cb];data?.ok?resolve(data):reject(Error(data?.error||'연결에 실패했어요. 잠시 후 다시 시도해 주세요.'))}window[cb]=done;script.onerror=()=>done(null);script.src=endpoint+'?'+new URLSearchParams({action,callback:cb,payload:JSON.stringify({session:state.session,...(action==='track'?{}:{answers:state.answers}),...extra})});document.head.append(script)})}
+function api(action,extra={}){return new Promise((resolve,reject)=>{let cb='ut_'+crypto.randomUUID().replaceAll('-','');let script=document.createElement('script');let timer=setTimeout(()=>done(null),15000);function done(data){clearTimeout(timer);script.remove();delete window[cb];data?.ok?resolve(data):reject(Error(data?.error||'연결에 실패했어요. 잠시 후 다시 시도해 주세요.'))}window[cb]=done;script.onerror=()=>done(null);script.src=endpoint+'?'+new URLSearchParams({action,callback:cb,payload:JSON.stringify({session:state.session,client:state.client,...(action==='track'?{}:{answers:state.answers}),...extra})});document.head.append(script)})}
 let registrationPromise=null;
 function ensureParticipant(){
   if(state.participantId)return Promise.resolve(state.participantId);
