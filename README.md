@@ -62,3 +62,5 @@ GitHub Pages 배포 파일: index.html, style.css, survey.js, config.js, prototy
 2026-11-04 중간 답변 저장: 선택·입력 후 800ms 및 문항 이동 시 save 요청. UT_responses.status=in_progress, answers_saved_at/answer_revision/last_step 추가. 최종 제출은 required 검증 후 completed, submitted_at 기록. 이전 revision·완료 후 draft는 무시. 통신 실패 시 최신 snapshot 재시도. 갑작스러운 종료 직전의 미전송 입력은 보장하지 않음.
 
 클릭 경로 간소화: bike_select는 자전거 선택 (거리) 한 항목만 표시하고, unlock_attempt는 잠금해제 (정답/오답)로 결과까지 표시합니다. 자동으로 따라오는 상세 정보·미션 종료는 별도 단계로 표시하지 않습니다. 현재 위치 뒤의 지도도 생략합니다. 원본 이벤트와 action_count는 유지합니다.
+
+세션별 클릭 경로: 현재 UT_responses.session_key와 UT_missions의 session_key+attempt_id가 일치하는 이벤트만 집계합니다. 참가자 번호만으로 합치지 않습니다. 재생성 시 이전 출력 행은 비웁니다. repairSessionClickPaths는 현재 원본을 유지하고 과거 원본을 숨김 UT_event_archive에 보관한 뒤 경로를 다시 만듭니다.

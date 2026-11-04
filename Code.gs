@@ -108,22 +108,50 @@ function pathLabels_(type,d){
     default:return [];
   }
 }
-function rebuildClickPaths_(ss){
-  const store=getEventStore_(ss),events=store.getDataRange().getValues().slice(1),groups={};
-  events.forEach(row=>{const id=String(row[1]);if(!id)return;(groups[id]||(groups[id]=[])).push(row);});
-  let sheet=ss.getSheetByName('UT_events');
-  if(!sheet)sheet=ss.insertSheet('UT_events');
-  const headers=['participant_id','click_path','action_count','last_saved_at'];
-  sheet.getRange(1,1,1,4).setValues([headers]);sheet.setFrozenRows(1);
-  const data=Object.keys(groups).sort((a,b)=>Number(a.slice(1))-Number(b.slice(1))).map(id=>{
-    const rows=groups[id].sort((a,b)=>a[2]===b[2]?Number(a[4])-Number(b[4]):Date.parse(a[5])-Date.parse(b[5]));
+function activeEventContext_(ss){
+  const responses=ss.getSheetByName('UT_responses'),missions=ss.getSheetByName('UT_missions');
+  const participants=new Map((responses?responses.getDataRange().getValues().slice(1):[]).filter(r=>r[0]&&r[1]).map(r=>[String(r[0]),String(r[1])]));
+  const attempts=new Set((missions?missions.getDataRange().getValues().slice(1):[]).filter(r=>participants.has(String(r[0]))).map(r=>String(r[0])+'|'+String(r[2])));
+  return {participants,attempts};
+}
+function currentEvent_(row,context){return context.participants.has(String(row[0]))&&context.attempts.has(String(row[0])+'|'+String(row[2]));}
+function clickPathRows_(events,context,savedAt){
+  const groups=new Map();
+  events.filter(row=>currentEvent_(row,context)).forEach(row=>{const session=String(row[0]);if(!groups.has(session))groups.set(session,[]);groups.get(session).push(row);});
+  return [...groups].sort(([a],[b])=>Number(context.participants.get(a).slice(1))-Number(context.participants.get(b).slice(1))).map(([session,rows])=>{
+    rows.sort((a,b)=>a[2]===b[2]?Number(a[4])-Number(b[4]):Date.parse(a[5])-Date.parse(b[5]));
     const labels=[];
     rows.forEach(row=>{let d={};try{d=JSON.parse(row[8]||'{}');}catch(_){};pathLabels_(row[6],d).forEach(label=>{if(labels[labels.length-1]!==label)labels.push(label);});});
-    return [id,labels.join(' → '),rows.length,new Date().toISOString()];
+    return [context.participants.get(session),labels.join(' → '),rows.length,savedAt];
   });
+}
+function rebuildClickPaths_(ss){
+  const events=getEventStore_(ss).getDataRange().getValues().slice(1);
+  const data=clickPathRows_(events,activeEventContext_(ss),new Date().toISOString());
+  let sheet=ss.getSheetByName('UT_events');if(!sheet)sheet=ss.insertSheet('UT_events');
+  const headers=['participant_id','click_path','action_count','last_saved_at'];
+  sheet.getRange(1,1,1,4).setValues([headers]);sheet.setFrozenRows(1);
+  // Remove stale output rows, including when there are no current participants.
+  if(sheet.getLastRow()>1)sheet.getRange(2,1,sheet.getLastRow()-1,4).clearContent();
   if(data.length)sheet.getRange(2,1,data.length,4).setValues(data);
   sheet.setColumnWidth(1,120);sheet.setColumnWidth(2,760);sheet.setColumnWidth(3,110);sheet.setColumnWidth(4,200);
   if(data.length)sheet.getRange(2,2,data.length,1).setWrap(true);
+}
+// Preserve retired raw records in a hidden archive; do not erase current tests.
+function repairSessionClickPaths(){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const ss=SpreadsheetApp.openById(SPREADSHEET_ID),store=getEventStore_(ss),rows=store.getDataRange().getValues(),context=activeEventContext_(ss);
+    const current=rows.slice(1).filter(r=>currentEvent_(r,context)),retired=rows.slice(1).filter(r=>r[0]&&!currentEvent_(r,context));
+    if(retired.length){
+      let archive=ss.getSheetByName('UT_event_archive');if(!archive){archive=ss.insertSheet('UT_event_archive');archive.appendRow(rows[0]);archive.setFrozenRows(1);}
+      archive.getRange(archive.getLastRow()+1,1,retired.length,9).setValues(retired);if(!archive.isSheetHidden())archive.hideSheet();
+      if(store.getLastRow()>1)store.getRange(2,1,store.getLastRow()-1,9).clearContent();
+      if(current.length)store.getRange(2,1,current.length,9).setValues(current);
+    }
+    rebuildClickPaths_(ss);updateFieldGuide();
+    console.log('현재 원본 이벤트 '+current.length+'개 유지 / 과거 이벤트 '+retired.length+'개 숨김 보관 / 세션 기준 경로 복구 완료');
+  }finally{lock.releaseLock();}
 }
 function migrateClickPaths(){const lock=LockService.getScriptLock();lock.waitLock(20000);try{rebuildClickPaths_(SpreadsheetApp.openById(SPREADSHEET_ID));updateFieldGuide();console.log('기존 클릭 경로를 간결한 표시로 갱신했습니다. 원본 이벤트는 유지됩니다.');}finally{lock.releaseLock();}}
 
@@ -181,8 +209,9 @@ function updateFieldGuide(){
     ['UT_missions','filter_discovery','필터 발견 여부','필터 3종 중 하나라도 켜면 발견. 종료까지 한 번도 켜지 않으면 발견하지 못함. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 발견으로 유지합니다.'],
     ['UT_missions','revision','저장 버전 (내부용)','발생한 이벤트 수를 기준으로 최신 기록을 구분합니다. 늦게 도착한 과거 기록이 최신 기록을 덮어쓰는 것을 막습니다. 분석용 점수가 아닙니다.'],
     ['UT_missions / UT_events','last_saved_at','마지막 저장 시각','서버가 해당 기록을 마지막으로 저장한 시각입니다. UTC(Z)입니다.'],
-    ['UT_events','click_path','화면·조작 순서','참가자 한 명당 한 행으로 주요 행동을 → 로 연결합니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
+    ['UT_events','click_path','화면·조작 순서','현재 UT_responses의 세션과 UT_missions의 미션 시도가 일치하는 원본만 사용하며, 세션별 한 행으로 주요 행동을 → 로 연결합니다. 참가자 번호가 재사용돼도 과거 세션은 합치지 않습니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
     ['UT_events','action_count','원본 이벤트 수','숨김·복귀 등 경로에 표시하지 않는 이벤트도 포함한 원본 기록 수입니다. 클릭 횟수나 경로 단계 수와 같지 않습니다.'],
+    ['UT_event_archive (숨김)','과거 기록','과거 이벤트 보관','현재 참가자·미션과 연결되지 않는 과거 원본을 복구용으로 보관합니다. 현재 클릭 경로 집계에는 포함하지 않습니다.'],
     ['UT_event_store (숨김)','event_id','이벤트 ID','같은 이벤트가 재전송되어도 중복 저장하지 않도록 사용하는 내부 식별자입니다.'],
     ['UT_event_store (숨김)','sequence','이벤트 발생 순번','해당 미션에서 행동이 발생한 순서입니다.'],
     ['UT_event_store (숨김)','event_at','이벤트 발생 시각','행동이 발생한 시각입니다. UTC(Z)입니다.'],
