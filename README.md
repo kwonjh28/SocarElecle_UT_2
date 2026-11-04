@@ -58,3 +58,5 @@ GitHub Pages 배포 파일: index.html, style.css, survey.js, config.js, prototy
 2026-11-04 Figma 중앙 배치: 94% 비정비 60m(241,259), 73% 비정비 80m(69,284), 31% 최근 정비 95m(211,183, 정답), 43% 최근 정비 100m(187,409), 83% 최근 정비 150m(92,154). 좌표는 지도 내부 기준입니다. 상세 정보는 거리 외 기존 값 유지. 이전 안정 버전: 태그 backup-before-cluster-layout-20261104 / 커밋 173d47e. 복원 시 해당 커밋의 파일로 새 복원 커밋을 만들고 배포하며, 강제 푸시는 사용하지 않습니다.
 
 최근 정비 + 100m 이내 필터 결과는 31%·95m와 43%·100m의 두 대입니다. 정답은 31%·95m입니다.
+
+2026-11-04 중간 답변 저장: 선택·입력 후 800ms 및 문항 이동 시 save 요청. UT_responses.status=in_progress, answers_saved_at/answer_revision/last_step 추가. 최종 제출은 required 검증 후 completed, submitted_at 기록. 이전 revision·완료 후 draft는 무시. 통신 실패 시 최신 snapshot 재시도. 갑작스러운 종료 직전의 미전송 입력은 보장하지 않음.

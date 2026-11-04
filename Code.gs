@@ -1,5 +1,5 @@
 const SPREADSHEET_ID = '1qbqs7qk_Y_sr6Qq8bAV2eh6YbM2PexjENcTQ5SlU_VU';
-const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3','post_positive','post_negative'];
+const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3','post_positive','post_negative','answers_saved_at','answer_revision','last_step'];
 function doGet(e) {
   const callback = e.parameter.callback || '';
   if (!/^ut_[a-zA-Z0-9_]+$/.test(callback)) return ContentService.createTextOutput('Invalid callback');
@@ -9,7 +9,7 @@ function doGet(e) {
     lock.waitLock(20000);
     const payload = JSON.parse(e.parameter.payload || '{}');
     if (!/^[a-f0-9-]{36}$/.test(payload.session || '')) throw Error('잘못된 세션입니다.');
-    if (!['register','submit','track'].includes(e.parameter.action)) throw Error('지원하지 않는 요청입니다.');
+    if (!['register','save','submit','track'].includes(e.parameter.action)) throw Error('지원하지 않는 요청입니다.');
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheet = ss.getSheetByName('UT_responses');
     if (!sheet) { sheet=ss.insertSheet('UT_responses'); sheet.appendRow(HEADERS); sheet.setFrozenRows(1); }
@@ -24,6 +24,7 @@ function doGet(e) {
     const rowNumber=index+1;
     const id=sheet.getRange(rowNumber,2).getValue();
     if(payload.mission) saveMission_(ss,payload.session,id,payload.mission,payload.events||[]);
+    if(e.parameter.action==='save')saveDraftAnswers_(sheet,rowNumber,payload);
     if(e.parameter.action==='submit'){
       const a=payload.answers||{};
       const allowed=['현재 위치에서 자전거까지의 거리','배터리 잔량','정비 상태','예상 이용 요금','주행 성능 및 승차감','반납 가능 지역','기타','자전거의 이용 가능 상태','자전거의 외관 및 관리 상태'];
@@ -44,6 +45,7 @@ function doGet(e) {
       const safeUsageOther=/^[=+@-]/.test(usageOther)?"'"+usageOther:usageOther;
       const safeOther=/^[=+@-]/.test(other)?"'"+other:other;
       sheet.getRange(rowNumber,3,1,20).setValues([['completed',new Date().toISOString(),'',a.gender,a.experience,frequency,[...new Set(a.criteria)].join(' | '),safeOther,a.ageGroup,a.experience==='없다'?'expected':'experienced',a.usage.join(' | '),safeUsageOther,a.criteria[0]||'',a.criteria[1]||'',a.criteria[2]||'',a.usage[0]||'',a.usage[1]||'',a.usage[2]||'',safeText(positive),safeText(negative)]]);
+      sheet.getRange(rowNumber,23,1,3).setValues([[new Date().toISOString(),Math.max(Number(sheet.getRange(rowNumber,24).getValue())||0,Number(payload.revision)||0),10]]);
     }
     result={ok:true,participantId:id};
   }catch(err){result={ok:false,error:String(err.message||err)}}finally{if(lock.hasLock())lock.releaseLock()}
@@ -145,7 +147,10 @@ function updateFieldGuide(){
   const rows=[['시트','항목명','한글 이름','의미 / 기록 기준'],
     ['공통','session_key','참여 세션 키','익명 참여 세션을 연결하는 내부 식별자입니다. 개인정보가 아닙니다.'],
     ['공통','participant_id','참가자 ID','P01, P02 순서로 생성되는 익명 참가자 번호입니다. 각 시트의 같은 참가자를 연결합니다.'],
-    ['UT_responses','status','설문 제출 상태','started: 참여 등록됨 / completed: 마지막 설문까지 제출 완료. 미션 정답 여부와는 별개입니다.'],
+    ['UT_responses','answers_saved_at','답변 마지막 저장 시각','선택 또는 입력이 잠시 멈춘 뒤와 문항 이동 시 자동 저장한 시각입니다. 최종 제출 시에도 갱신됩니다. UTC(Z)입니다.'],
+    ['UT_responses','answer_revision','답변 저장 버전','이전 답변이 늦게 도착해 최신 답변을 덮어쓰지 않도록 하는 내부 순번입니다.'],
+    ['UT_responses','last_step','마지막 저장 단계','1 연령대 / 2 성별 / 3 경험 / 4 빈도 / 5 이용 상황 / 6 선택 조건 / 7 미션 안내·수행 / 8 사후 Q1 / 9 사후 Q2 / 10 최종 제출 완료. 이탈을 확정하는 값은 아닙니다.'],
+    ['UT_responses','status','설문 제출 상태','started: 참여 등록됨 / in_progress: 답변 중간 저장됨 / completed: 마지막 설문까지 제출 완료. 미션 정답 여부와는 별개입니다.'],
     ['UT_responses','submitted_at','설문 제출 시각','마지막 설문 제출이 완료된 시각입니다. ISO 8601 UTC(Z)이며 한국·일본 시각은 9시간을 더합니다.'],
     ['UT_responses','age','만 나이 (미사용)','기존 호환용 빈 열입니다. 현재 연령대는 age_group에 저장합니다.'],
     ['UT_responses','age_group','연령대','10대 / 20대 / 30대 / 40대 / 50대 / 60대 이상'],
@@ -184,7 +189,7 @@ function updateFieldGuide(){
     ['UT_event_store (숨김)','event_type','이벤트 종류','지도 준비, 필터 조작, 자전거 선택, 미션 보기/닫기, 잠금해제, 성공/오답 종료, 탭 숨김/복귀, 페이지 이탈 등입니다.'],
     ['UT_event_store (숨김)','active_seconds','이벤트 발생까지 실제 수행 시간 (초)','미션 시작부터 해당 이벤트까지, 탭 숨김·미션 보기 시간을 제외한 누적 시간입니다.'],
     ['UT_event_store (숨김)','details','이벤트 상세 정보','조작한 필터와 켜짐 여부, 선택 자전거 ID, 정답 여부 등을 JSON으로 저장하는 내부 원본입니다.'],
-    ['운영 참고','저장 / 이탈','저장 시점과 해석','일부 행동과 약 5초 주기로 저장합니다. 마지막 설문을 제출해야 설문 답변이 저장됩니다. 갑자기 창을 닫으면 마지막 미전송 기록이 누락될 수 있습니다.'],
+    ['운영 참고','저장 / 이탈','저장 시점과 해석','미션 행동은 일부 행동과 약 5초 주기로 저장합니다. 설문은 선택·입력 후 약 0.8초와 문항 이동 시 자동 저장하며, 최종 제출 전에는 in_progress입니다. 갑자기 창을 닫거나 통신이 끊기면 마지막 미전송 답변·기록이 누락될 수 있습니다.'],
     ['운영 참고','초기화','참가자 번호','참여 기록을 모두 초기화하면 다음 신규 참가자는 P01부터 시작합니다. 이전 테스트 문구는 설문 항목이 아니라 기타에 입력했던 테스트 답변이며 초기화로 제거했습니다.']
   ];
   let sheet=ss.getSheetByName('항목 설명');if(!sheet)sheet=ss.insertSheet('항목 설명');
@@ -194,4 +199,40 @@ function updateFieldGuide(){
   sheet.getRange(2,1,rows.length-1,4).setWrap(true).setVerticalAlignment('top');
   sheet.autoResizeRows(1,rows.length);
   console.log('항목 설명 '+(rows.length-1)+'개 작성 완료');
+}
+
+function saveDraftAnswers_(sheet,rowNumber,payload){
+  const revision=payload.revision;
+  if(!Number.isSafeInteger(revision)||revision<1)throw Error('잘못된 답변 저장 버전입니다.');
+  if(sheet.getRange(rowNumber,3).getValue()==='completed'||revision<=(Number(sheet.getRange(rowNumber,24).getValue())||0))return;
+  const a=payload.answers||{};
+  const pick=(value,allowed)=>allowed.includes(value)?value:'';
+  const ranked=(value,allowed)=>Array.isArray(value)?[...new Set(value.filter(x=>allowed.includes(x)))].slice(0,3):[];
+  const text=(value,max)=>{const t=String(value||'').slice(0,max).trim();return /^[=+@-]/.test(t)?"'"+t:t;};
+  const experience=pick(a.experience,['있다','없다']);
+  const frequency=experience==='없다'?'0회':pick(a.frequency,['주 3회 이상 이용','주 1~2회 이용','월 1~2회 정도 이용','과거에 여러 차례 이용했지만, 지금은 이용하지 않음','지금까지 한두번만 이용해 봄']);
+  const criteria=ranked(a.criteria,['현재 위치에서 자전거까지의 거리','배터리 잔량','정비 상태','예상 이용 요금','주행 성능 및 승차감','반납 가능 지역','기타']);
+  const usage=ranked(a.usage,['출퇴근 또는 등하교할 때','대중교통 환승 및 연계 이동 시','가까운 목적지로 이동할 때','여가·산책·관광을 즐길 때','급하게 이동해야 할 때','기타']);
+  const row=['in_progress','','',pick(a.gender,['남성','여성','응답하지 않음']),experience,frequency,criteria.join(' | '),criteria.includes('기타')?text(a.other,500):'',pick(a.ageGroup,['10대','20대','30대','40대','50대','60대 이상']),experience?(experience==='없다'?'expected':'experienced'):'',usage.join(' | '),usage.includes('기타')?text(a.usageOther,500):'',criteria[0]||'',criteria[1]||'',criteria[2]||'',usage[0]||'',usage[1]||'',usage[2]||'',text(a.postPositive,2000),text(a.postNegative,2000),new Date().toISOString(),revision,Number.isInteger(payload.step)&&payload.step>=1&&payload.step<=9?payload.step:''];
+  sheet.getRange(rowNumber,3,1,row.length).setValues([row]);
+}
+
+// Editor-only verification. Removes only the temporary row created by this run.
+function verifyDraftSaving(){
+  const session=Utilities.getUuid(),ss=SpreadsheetApp.openById(SPREADSHEET_ID),sheet=ss.getSheetByName('UT_responses');
+  const request=(action,answers,revision,step)=>{
+    const result=doGet({parameter:{action,callback:'ut_verify',payload:JSON.stringify({session,answers,revision,step})}}).getContent();
+    const parsed=JSON.parse(result.slice('ut_verify('.length,-2));if(!parsed.ok)throw Error(parsed.error);return parsed;
+  };
+  const find=()=>sheet.getDataRange().getValues().findIndex((r,i)=>i>0&&r[0]===session)+1;
+  try{
+    request('save',{ageGroup:'20대'},1,2);
+    let row=sheet.getRange(find(),1,1,HEADERS.length).getValues()[0];
+    if(row[2]!=='in_progress'||row[10]!=='20대'||row[23]!==1)throw Error('첫 답변 저장 불일치');
+    request('save',{ageGroup:'30대',experience:'없다',postPositive:'없음'},3,8);
+    request('save',{ageGroup:'10대'},2,1);
+    row=sheet.getRange(find(),1,1,HEADERS.length).getValues()[0];
+    if(row[10]!=='30대'||row[7]!=='0회'||row[20]!=='없음'||row[24]!==8)throw Error('중간 답변 또는 이전 버전 방지 불일치');
+    console.log('PASS 실제 시트 중간 저장, 이용 경험 없음 0회, 사후 일부 답변, 이전 답변 덮어쓰기 방지 확인');
+  }finally{const rowNumber=find();if(rowNumber>1)sheet.deleteRow(rowNumber);console.log('검증용 참가자 행 정리 완료');}
 }
