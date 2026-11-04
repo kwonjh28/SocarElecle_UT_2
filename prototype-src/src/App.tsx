@@ -654,7 +654,7 @@ export default function App() {
       {missionOpen && (
         <dialog ref={missionDialog} className="mission-dialog" aria-labelledby="mission-heading" onCancel={(event) => {event.preventDefault();closeMission()}}>
           <span className="mission-eyebrow">미션 {secondMission ? 2 : 1}</span>
-          {secondMission && <p className="mission-hint">이번에는 필터를 이용해 자전거를 찾아주세요.</p>}
+          {secondMission && <><p className="mission-hint">이번에는 필터를 이용해 자전거를 찾아주세요.</p><figure className="mission-filter-reference"><figcaption>지도 상단의 필터</figcaption><img src={`${A}/mission2-filter-reference.png`} alt="최근 정비, 100m 이내, 50% 이상 필터" width="366" height="51" /></figure></>}
           <h2 id="mission-heading" className="mission-copy"><span className="mission-condition"><span className="condition-tag">조건 1</span><span>{secondMission ? "현재 위치에서 100m 이내에 있는 자전거 중," : "최근에 정비가 된 자전거들 중,"}</span></span><span className="mission-condition"><span className="condition-tag">조건 2</span><span>{secondMission ? "배터리 잔량이 가장 많은 자전거를" : "사용자와 가장 가까이 위치한 자전거를"}</span></span><span className="mission-action">잠금해제 해주세요.</span></h2>
           <button className="mission-close" onClick={closeMission}>닫기</button>
         </dialog>

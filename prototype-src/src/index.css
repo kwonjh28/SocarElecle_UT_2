@@ -732,3 +732,5 @@
 .mission-dialog h2.mission-copy{font-size:clamp(14px,4.5vw,18px);line-height:1.6;letter-spacing:-.6px}.mission-copy>span{display:block}.mission-condition{margin:0 0 24px}.mission-condition>span:not(.condition-tag){display:block;word-break:keep-all}.condition-tag{display:table;margin-bottom:8px;padding:4px 9px;border-radius:6px;background:#eaf4ff;color:#0078ff;font-size:12px;font-weight:600;line-height:1.4;letter-spacing:0}.mission-action{margin-top:4px}
 
 .mission-dialog .mission-hint{font-size:14px;line-height:1.6;color:#758093;margin:12px 0 0;word-break:keep-all}
+
+.mission-dialog .mission-filter-reference{margin:16px 0 24px;padding:12px;border-radius:12px;background:#f5f8fc}.mission-filter-reference figcaption{margin-bottom:8px;font-size:12px;line-height:1.5;font-weight:500;color:#758093}.mission-filter-reference img{display:block;width:100%;height:auto;border-radius:8px}
