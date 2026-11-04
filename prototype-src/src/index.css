@@ -729,4 +729,4 @@
   .range-pill{font-size:13px;line-height:18px;gap:6px;padding:6px 14px;min-width:178px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 }
 
-.mission-dialog h2.mission-copy{font-size:clamp(14px,4.5vw,18px);line-height:1.6;letter-spacing:-.6px}.mission-copy>span{display:block;white-space:nowrap}
+.mission-dialog h2.mission-copy{font-size:clamp(14px,4.5vw,18px);line-height:1.6;letter-spacing:-.6px}.mission-copy>span{display:block}.mission-condition{margin:0 0 24px}.mission-condition>span:not(.condition-tag){display:block;word-break:keep-all}.condition-tag{display:table;margin-bottom:8px;padding:4px 9px;border-radius:6px;background:#eaf4ff;color:#0078ff;font-size:12px;font-weight:600;line-height:1.4;letter-spacing:0}.mission-action{margin-top:4px}

@@ -29,8 +29,8 @@ function doGet(e) {
       const allowed=['현재 위치에서 자전거까지의 거리','배터리 잔량','정비 상태','예상 이용 요금','주행 성능 및 승차감','반납 가능 지역','기타','자전거의 이용 가능 상태','자전거의 외관 및 관리 상태'];
       if(!['10대','20대','30대','40대','50대','60대 이상'].includes(a.ageGroup))throw Error('연령대를 확인해 주세요.');
       if(!['남성','여성','응답하지 않음'].includes(a.gender)||!['있다','없다'].includes(a.experience))throw Error('필수 답변을 확인해 주세요.');
-      const frequency=a.experience==='없다'?'0회':a.frequency;
-      if(!['0회','주 3회 이상 이용','주 1~2회 이용','월 1~2회 정도 이용','과거에 여러 차례 이용했지만, 최근 1개월간 이용하지 않음','지금까지 한두번만 이용해 봄'].includes(frequency))throw Error('이용 횟수를 확인해 주세요.');
+      const frequency=a.experience==='없다'?'0회':a.frequency==='과거에 여러 차례 이용했지만, 최근 1개월간 이용하지 않음'?'과거에 여러 차례 이용했지만, 지금은 이용하지 않음':a.frequency;
+      if(!['0회','주 3회 이상 이용','주 1~2회 이용','월 1~2회 정도 이용','과거에 여러 차례 이용했지만, 지금은 이용하지 않음','지금까지 한두번만 이용해 봄'].includes(frequency))throw Error('이용 횟수를 확인해 주세요.');
       if(!Array.isArray(a.criteria)||!a.criteria.length||a.criteria.length>3||new Set(a.criteria).size!==a.criteria.length||a.criteria.some(x=>!allowed.includes(x)))throw Error('고려 조건을 선택해 주세요.');
       const other=a.criteria.includes('기타')?String(a.other||'').trim():'';
       if(a.criteria.includes('기타')&&(!other||other.length>500))throw Error('기타 내용을 확인해 주세요.');
