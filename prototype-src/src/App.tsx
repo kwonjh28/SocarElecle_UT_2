@@ -44,7 +44,7 @@ const bikes: Bike[] = [
   {
     id: "10201967",
     battery: 43,
-    distance: "120m",
+    distance: "100m",
     range: "22.0km",
     minutes: "66분",
     recent: true,
