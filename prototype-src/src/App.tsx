@@ -33,40 +33,40 @@ const bikes: Bike[] = [
   {
     id: "10201945",
     battery: 94,
-    distance: "212m",
+    distance: "60m",
     range: "42.0km",
     minutes: "128분",
     recent: false,
     photo: "bbf5b.png",
-    x: 108,
-    y: 68,
+    x: 241,
+    y: 259,
   },
   {
     id: "10201967",
     battery: 43,
-    distance: "80m",
+    distance: "120m",
     range: "22.0km",
     minutes: "66분",
     recent: true,
     photo: "96ccc.png",
-    x: 211,
-    y: 183,
-  },
-  {
-    id: "10201923",
-    battery: 31,
-    distance: "72m",
-    range: "16.0km",
-    minutes: "33분",
-    recent: true,
-    photo: "725a2.png",
     x: 187,
     y: 409,
   },
   {
+    id: "10201923",
+    battery: 31,
+    distance: "95m",
+    range: "16.0km",
+    minutes: "33분",
+    recent: true,
+    photo: "725a2.png",
+    x: 211,
+    y: 183,
+  },
+  {
     id: "10201951",
     battery: 73,
-    distance: "96m",
+    distance: "80m",
     range: "32.0km",
     minutes: "96분",
     recent: false,
@@ -78,13 +78,13 @@ const bikes: Bike[] = [
   {
     id: "10201989",
     battery: 83,
-    distance: "103m",
+    distance: "150m",
     range: "39.0km",
     minutes: "108분",
     recent: true,
     photo: "63249.png",
-    x: 293,
-    y: 176,
+    x: 92,
+    y: 154,
   },
 ]
 
@@ -354,6 +354,12 @@ function Map({
       if (window.parent.innerWidth < 600) {
         const lowestBottom = Math.max(...visibleBikes.map(bike => element.getBoundingClientRect().top + bike.y + pan.y + 87))
         correction = Math.min(correction, safeBottom - lowestBottom)
+        // If the viewport cannot fit the whole cluster, retain access to the
+        // closest recently serviced candidate rather than covering the mission target.
+        const recentCandidates = visibleBikes.filter(bike => bike.recent)
+        const candidate = recentCandidates.length ? recentCandidates.reduce((a,b) => Number.parseInt(a.distance) < Number.parseInt(b.distance) ? a : b) : selected
+        const candidateTop = element.getBoundingClientRect().top + candidate.y + pan.y
+        correction = Math.max(safeTop - candidateTop, Math.min(correction, safeBottom - candidateTop - 87))
       }
       setSelectionOffsetY(correction)
     }
