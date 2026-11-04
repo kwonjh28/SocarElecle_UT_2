@@ -1,5 +1,5 @@
 const SPREADSHEET_ID = '1qbqs7qk_Y_sr6Qq8bAV2eh6YbM2PexjENcTQ5SlU_VU';
-const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3'];
+const HEADERS = ['session_key','participant_id','status','submitted_at','age','gender','experience','frequency','criteria','other','age_group','usage_question_type','usage_situations','usage_other','criteria_rank_1','criteria_rank_2','criteria_rank_3','usage_rank_1','usage_rank_2','usage_rank_3','post_positive','post_negative'];
 function doGet(e) {
   const callback = e.parameter.callback || '';
   if (!/^ut_[a-zA-Z0-9_]+$/.test(callback)) return ContentService.createTextOutput('Invalid callback');
@@ -38,9 +38,12 @@ function doGet(e) {
       if(!Array.isArray(a.usage)||!a.usage.length||a.usage.length>3||new Set(a.usage).size!==a.usage.length||a.usage.some(x=>!usageAllowed.includes(x)))throw Error('이용 상황은 1~3개 선택해 주세요.');
       const usageOther=a.usage.includes('기타')?String(a.usageOther||'').trim():'';
       if(a.usage.includes('기타')&&(!usageOther||usageOther.length>500))throw Error('기타 이용 상황을 확인해 주세요.');
+      const positive=String(a.postPositive||'').trim(),negative=String(a.postNegative||'').trim();
+      if(!positive||!negative||positive.length>2000||negative.length>2000)throw Error('사후 설문 두 문항을 모두 작성해 주세요.');
+      const safeText=value=>/^[=+@-]/.test(value)?"'"+value:value;
       const safeUsageOther=/^[=+@-]/.test(usageOther)?"'"+usageOther:usageOther;
       const safeOther=/^[=+@-]/.test(other)?"'"+other:other;
-      sheet.getRange(rowNumber,3,1,18).setValues([['completed',new Date().toISOString(),'',a.gender,a.experience,frequency,[...new Set(a.criteria)].join(' | '),safeOther,a.ageGroup,a.experience==='없다'?'expected':'experienced',a.usage.join(' | '),safeUsageOther,a.criteria[0]||'',a.criteria[1]||'',a.criteria[2]||'',a.usage[0]||'',a.usage[1]||'',a.usage[2]||'']]);
+      sheet.getRange(rowNumber,3,1,20).setValues([['completed',new Date().toISOString(),'',a.gender,a.experience,frequency,[...new Set(a.criteria)].join(' | '),safeOther,a.ageGroup,a.experience==='없다'?'expected':'experienced',a.usage.join(' | '),safeUsageOther,a.criteria[0]||'',a.criteria[1]||'',a.criteria[2]||'',a.usage[0]||'',a.usage[1]||'',a.usage[2]||'',safeText(positive),safeText(negative)]]);
     }
     result={ok:true,participantId:id};
   }catch(err){result={ok:false,error:String(err.message||err)}}finally{if(lock.hasLock())lock.releaseLock()}
@@ -138,6 +141,7 @@ function resetParticipationRecords(){
 
 function updateFieldGuide(){
   const ss=SpreadsheetApp.openById(SPREADSHEET_ID);
+  const responses=ss.getSheetByName('UT_responses');if(responses)responses.getRange(1,1,1,HEADERS.length).setValues([HEADERS]);
   const rows=[['시트','항목명','한글 이름','의미 / 기록 기준'],
     ['공통','session_key','참여 세션 키','익명 참여 세션을 연결하는 내부 식별자입니다. 개인정보가 아닙니다.'],
     ['공통','participant_id','참가자 ID','P01, P02 순서로 생성되는 익명 참가자 번호입니다. 각 시트의 같은 참가자를 연결합니다.'],
@@ -154,8 +158,10 @@ function updateFieldGuide(){
     ['UT_responses','usage_rank_1','이용 상황 1순위','첫 번째로 선택한 이용 상황입니다.'],
     ['UT_responses','usage_rank_2','이용 상황 2순위','두 번째로 선택한 이용 상황입니다. 1개만 선택했다면 빈칸입니다.'],
     ['UT_responses','usage_rank_3','이용 상황 3순위','세 번째로 선택한 이용 상황입니다. 1~2개만 선택했다면 빈칸입니다.'],
-    ['UT_responses','criteria','자전거 선택 조건 전체','마지막 설문의 선택 조건을 중요도 순서대로 1~3개, | 로 구분해 저장합니다.'],
-    ['UT_responses','other','기타 선택 조건','마지막 설문에서 기타를 선택했을 때 직접 입력한 내용입니다. 테스트 전용 항목이 아닙니다.'],
+    ['UT_responses','criteria','자전거 선택 조건 전체','사전 설문의 선택 조건을 중요도 순서대로 1~3개, | 로 구분해 저장합니다.'],
+    ['UT_responses','post_positive','사후 Q1 좋았던 점','원하는 조건의 자전거를 찾는 과정에서 편리하거나 좋았던 점에 대한 필수 주관식 응답입니다. 특별히 없다면 없음으로 작성합니다.'],
+    ['UT_responses','post_negative','사후 Q2 불편했던 점','원하는 조건의 자전거를 찾는 과정에서 어렵거나 불편했던 점에 대한 필수 주관식 응답입니다. 특별히 없다면 없음으로 작성합니다.'],
+    ['UT_responses','other','기타 선택 조건','사전 설문 선택 조건에서 기타를 선택했을 때 직접 입력한 내용입니다. 테스트 전용 항목이 아닙니다.'],
     ['UT_responses','criteria_rank_1','선택 조건 1순위','첫 번째로 선택한 자전거 선택 조건입니다.'],
     ['UT_responses','criteria_rank_2','선택 조건 2순위','두 번째로 선택한 조건입니다. 1개만 선택했다면 빈칸입니다.'],
     ['UT_responses','criteria_rank_3','선택 조건 3순위','세 번째로 선택한 조건입니다. 1~2개만 선택했다면 빈칸입니다.'],

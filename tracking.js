@@ -31,7 +31,7 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
     finally {inFlight=false;if(m.acked<m.events.length&&!stopped)setTimeout(flush,400);}
   }
   function ready() {
-    if(state.step!==6)return;
+    if(state.step!==7)return;
     if(state.mission && state.mission.status!=='running'){onComplete();return;}
     if(!state.mission)state.mission={attemptId:crypto.randomUUID(),startedAt:new Date().toISOString(),activeMs:0,status:'running',firstFilterSeconds:null,firstRecentFilterSeconds:null,events:[],acked:0};
     if(document.hidden)reasons.add('hidden');
@@ -39,7 +39,7 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
     checkpoint();record('prototype_ready',{screen:'map'});flush();
   }
   function visibility() {
-    if(!state.mission || state.mission.status!=='running' || state.step!==6)return;
+    if(!state.mission || state.mission.status!=='running' || state.step!==7)return;
     checkpoint();
     if(document.hidden)reasons.add('hidden');else reasons.delete('hidden');
     checkpoint();record(document.hidden?'tab_hidden':'tab_visible');flush();
@@ -49,7 +49,7 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
     if(event.origin!==location.origin || !frame || event.source!==frame.contentWindow || event.data?.source!=='elecle-prototype')return;
     const {type,details={}}=event.data;
     if(type==='ready'){ready();return;}
-    if(!state.mission || state.mission.status!=='running' || state.step!==6)return;
+    if(!state.mission || state.mission.status!=='running' || state.step!==7)return;
     if(type==='mission_open') {checkpoint();reasons.add('mission');checkpoint();record(type);}
     else if(type==='mission_close') {record(type);reasons.delete('mission');checkpoint();}
     else if(type==='filter_toggle') {
@@ -69,6 +69,6 @@ window.createMissionTracker = function(state, persist, api, onComplete) {
   window.addEventListener('message',receive);
   document.addEventListener('visibilitychange',visibility);
   window.addEventListener('pagehide',()=>{if(state.mission && state.mission.status==='running'){checkpoint();clock=null;record('page_exit');persist();flush();}});
-  setInterval(()=>{if(state.mission && state.mission.status==='running' && state.step===6){checkpoint();persist();flush();}},5000);
+  setInterval(()=>{if(state.mission && state.mission.status==='running' && state.step===7){checkpoint();persist();flush();}},5000);
   return {ready,summary,flush};
 };
