@@ -348,14 +348,20 @@ function Map({
       const safeBottom = app.getBoundingClientRect().bottom - sheet.offsetHeight - 17 - 12
       const markerTop = element.getBoundingClientRect().top + selected.y + pan.y
       const markerBottom = markerTop + 87 // Include the pin tip extending beyond its button.
-      const correction = markerBottom > safeBottom ? safeBottom - markerBottom : markerTop < safeTop ? safeTop - markerTop : 0
+      let correction = markerBottom > safeBottom ? safeBottom - markerBottom : markerTop < safeTop ? safeTop - markerTop : 0
+      // On a mobile page, keep lower visible bikes reachable when a different
+      // bike opens the sheet, including the lowest marker above the sheet.
+      if (window.parent.innerWidth < 600) {
+        const lowestBottom = Math.max(...visibleBikes.map(bike => element.getBoundingClientRect().top + bike.y + pan.y + 87))
+        correction = Math.min(correction, safeBottom - lowestBottom)
+      }
       setSelectionOffsetY(correction)
     }
     adjustSelection()
     const observer = new ResizeObserver(adjustSelection)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [selected, pan.y])
+  }, [selected, pan.y, visibleBikes])
 
   const clamp = (value: number, min: number, max: number) =>
     Math.min(max, Math.max(min, value))
