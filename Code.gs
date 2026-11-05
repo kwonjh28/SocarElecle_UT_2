@@ -75,7 +75,7 @@ function saveMission_(ss,session,participantId,m,events) {
   summary.getRange(1,1,1,summaryHeaders.length).setValues([summaryHeaders]);
   const rows=summary.getDataRange().getValues();
   const index=rows.findIndex((row,i)=>i>0&&row[0]===session&&row[2]===m.attemptId);
-  const discovery=m.firstFilterSeconds===null||m.firstFilterSeconds===undefined?(m.status!=='running'?(missionNumber===2?'미사용':'발견하지 못함'):'미확인'):(missionNumber===2?'사용':'발견');
+  const discovery=m.firstFilterSeconds===null||m.firstFilterSeconds===undefined?(m.status!=='running'?'미사용':'미확인'):'사용';
   const row=[session,participantId,m.attemptId,m.status,m.startedAt,m.endedAt||'',m.totalSeconds,m.activeSeconds,first(m.firstFilterSeconds),first(m.firstRecentFilterSeconds),discovery,m.revision,new Date().toISOString(),missionNumber,missionNumber===2?'filter_prompted':'unprompted'];
   if(index<0)summary.appendRow(row);
   else if(m.revision>=Number(rows[index][11])&&!(rows[index][3]!=='running'&&m.status==='running'))summary.getRange(index+1,1,1,row.length).setValues([row]);
@@ -219,7 +219,7 @@ function updateFieldGuide(){
     ['UT_missions','active_seconds','실제 수행 시간 (초)','전체 시간에서 탭이 가려진 시간과 미션 보기 팝업을 열어둔 시간을 제외합니다. 두 상태가 겹쳐도 한 번만 제외합니다.'],
     ['UT_missions','first_filter_seconds','첫 필터 활성화까지 시간 (초)','최근 정비·100m 이내·50% 이상 중 어떤 필터든 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
     ['UT_missions','first_recent_filter_seconds','최근 정비 첫 활성화까지 시간 (초)','최근 정비 필터를 처음 켤 때까지의 실제 수행 시간입니다. 켠 적이 없으면 빈칸입니다.'],
-    ['UT_missions','filter_discovery','필터 발견 여부','미션1: 하나라도 켜면 발견, 종료까지 켜지 않으면 발견하지 못함. 미션2: 안내 후 켜면 사용, 종료까지 켜지 않으면 미사용. 진행 중 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 사용 기록은 유지합니다.'],
+    ['UT_missions','filter_discovery','필터 사용 여부','미션1·2 공통: 최근 정비·100m 이내·50% 이상 중 하나라도 켜면 사용, 종료까지 켜지 않으면 미사용. 종료 전 아직 켜지 않았다면 미확인. 한 번 켠 뒤 꺼도 사용으로 유지합니다. 미션1은 자발적 사용, 미션2는 안내 후 사용이므로 mission_number로 구분해 분석합니다.'],
     ['UT_missions','revision','저장 버전 (내부용)','발생한 이벤트 수를 기준으로 최신 기록을 구분합니다. 늦게 도착한 과거 기록이 최신 기록을 덮어쓰는 것을 막습니다. 분석용 점수가 아닙니다.'],
     ['UT_missions / UT_events','last_saved_at','마지막 저장 시각','서버가 해당 기록을 마지막으로 저장한 시각입니다. UTC(Z)입니다.'],
     ['UT_events','click_path','화면·조작 순서','현재 UT_responses의 세션과 UT_missions의 미션 시도가 일치하는 원본만 사용하며, 세션별 한 행으로 주요 행동을 → 로 연결합니다. 참가자 번호가 재사용돼도 과거 세션은 합치지 않습니다. 예: 지도 → 100m 이내 켜기 → 자전거 선택 (95m) → 잠금해제 (정답). 상세 정보 열림과 미션 종료는 앞선 조작에 포함되어 별도 표시하지 않습니다. 미션2를 진행한 참가자는 미션 1·미션 2 구분을 표시합니다. 서로 다른 자전거를 번갈아 선택한 실제 순서는 유지합니다. 지도 드래그는 기록하지 않습니다.'],
@@ -286,5 +286,14 @@ function upgradeMissionSchema(){
       if(sheet.getLastRow()>1){const values=sheet.getRange(2,14,sheet.getLastRow()-1,2).getValues().map(r=>[Number(r[0])===2?2:1,Number(r[0])===2?'filter_prompted':'unprompted']);sheet.getRange(2,14,values.length,2).setValues(values);}
     }
     rebuildClickPaths_(ss);updateFieldGuide();console.log('기존 미션은 미션1로 유지, 미션 번호·사용 안내 여부 열 추가 완료');
+  }finally{lock.releaseLock();}
+}
+
+// Editor-only: normalize labels without altering measurements or outcomes.
+function normalizeFilterUsageLabels(){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{const sheet=SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('UT_missions');
+    if(sheet&&sheet.getLastRow()>1){const range=sheet.getRange(2,11,sheet.getLastRow()-1,1);const values=range.getValues();let changed=0;values.forEach(row=>{if(row[0]==='발견'){row[0]='사용';changed++;}else if(row[0]==='발견하지 못함'){row[0]='미사용';changed++;}});range.setValues(values);console.log('필터 사용 여부 '+changed+'개 표기 통일');}
+    updateFieldGuide();
   }finally{lock.releaseLock();}
 }

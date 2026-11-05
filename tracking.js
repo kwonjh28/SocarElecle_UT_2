@@ -17,7 +17,7 @@ window.createMissionTracker = function(state,persist,api,onComplete){
   }
   function describe(m){
     if(m===state.mission)checkpoint();
-    return {attemptId:m.attemptId,missionNumber:m.missionNumber||1,taskMode:m.missionNumber===2?'filter_prompted':'unprompted',startedAt:m.startedAt,endedAt:m.endedAt||'',status:m.status,activeSeconds:+(m.activeMs/1000).toFixed(3),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstFilterSeconds===null?(m.status==='running'?'미확인':'발견하지 못함'):'발견',revision:m.events.length};
+    return {attemptId:m.attemptId,missionNumber:m.missionNumber||1,taskMode:m.missionNumber===2?'filter_prompted':'unprompted',startedAt:m.startedAt,endedAt:m.endedAt||'',status:m.status,activeSeconds:+(m.activeMs/1000).toFixed(3),totalSeconds:+(((m.endedAt?Date.parse(m.endedAt):Date.now())-Date.parse(m.startedAt))/1000).toFixed(3),firstFilterSeconds:m.firstFilterSeconds,firstRecentFilterSeconds:m.firstRecentFilterSeconds,filterDiscovery:m.firstFilterSeconds===null?(m.status==='running'?'미확인':'미사용'):'사용',revision:m.events.length};
   }
   function summary(){return state.mission?describe(state.mission):null;}
   function summaries(){return state.missions.map(describe);}
